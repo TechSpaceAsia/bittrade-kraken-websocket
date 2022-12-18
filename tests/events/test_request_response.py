@@ -210,7 +210,7 @@ def test_request_response_subscription():
     scheduler = TestScheduler()
     sender = scheduler.create_observer()
     messages = scheduler.create_hot_observable(
-        from_sample('../samples/subscribe.jsonl')
+        from_sample('subscribe.jsonl')
     )
     timeout = scheduler.create_cold_observable(on_next(400, None))
     caller = request_response(

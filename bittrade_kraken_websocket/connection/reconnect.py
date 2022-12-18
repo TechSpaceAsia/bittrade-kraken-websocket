@@ -1,51 +1,80 @@
-from typing import TypeVar
+from logging import getLogger
+from typing import TypeVar, Optional
+from collections.abc import Generator
 
 import reactivex
-from reactivex import compose, operators, Observer, Observable
+from reactivex import Observable
 from reactivex.disposable import Disposable
-from reactivex.internal import infinite
 from reactivex.operators import take, ignore_elements, do_action
 
 _T = TypeVar("_T")
 
-def retry_reconnect(stabilized: Observable, delays_pattern=None):
-    delays_pattern = delays_pattern or [0.0, 0.0, 1.0, 5.0]
+logger = getLogger(__name__)
+
+
+def repeat_with_backoff(stabilized: Observable=None, delays_pattern: Optional[Generator[float, None, None]]=None):
+    """
+    :param: stabilized: An observable that completes after an amount of time (or a condition)
+    When it successfully completes, the "delays" are reset to zero and follow the delays_pattern again
+    This defaults to being active for 5 seconds without a completion
+    :param: delays_pattern A generator which yields the waiting time during each failed iteration. A new generator is called anew when the source observable emitted "stable"
+    Use an infinite generator for infinite repeats. Below are a few examples of backoff patterns
+    ```
+    # kraken's documentation suggested pattern
+    def delays_pattern():
+        yield 0.0
+        yield 0.0
+        yield 1.0
+        while True:
+            yield 5.0
+
+    def exponential():
+        yield 0.0
+        value = 1.0
+        while True:
+            yield value
+            value *= 2
+    def finite():
+        return iter([0.0, 3.0, 30.0])
+    ```
+    """
+    if not stabilized:
+        stabilized = reactivex.interval(5.0)
+    if not delays_pattern:
+        def gen():
+            yield 0.0
+            yield 0.0
+            yield 1.0
+            while True:
+                yield 5.0
+        delays_pattern = gen
     def _retry_reconnect(source: Observable[_T]) -> Observable[_T]:
         current_stable_subscription = [Disposable()]
-        gen = infinite()
 
-        # def delay_generator():
-        #     delay_by = delays[0].pop(0) if len(delays[0]) else delays_pattern[-1]
-        #     yield reactivex.interval(delay_by)
-        #     yield source
+        def delay_generator(scheduler):
+            while True:
+                delay_by = next(delays[0])
+                current_stable_subscription[0].dispose()
+                yield reactivex.interval(delay_by).pipe(
+                    take(1),
+                    ignore_elements()
+                )
+                current_stable_subscription[0] = stabilized.pipe(
+                    take(1),
+                    do_action(on_completed=lambda: print('Resetting at %s', scheduler.clock))
+                ).subscribe(on_completed=reset_delay, scheduler=scheduler)
+                yield source
 
 
-        delays = [list(delays_pattern)]
-        current_delay = [delays[0].pop(0)]
+        delays = [None]
 
-        def reset_delay(scheduler):
-            current_delay[0] = 0.0
-            delays[0] = list(delays_pattern)
-
-
-        def increment_delay(scheduler):
-            if len(delays[0]):
-                current_delay[0] = delays[0].pop(0)
-            # Unless stopped by another completion, this will reset the delay once we feel its stabilized
-            current_stable_subscription[0] = stabilized.pipe(
-                operators.delay_subscription(current_delay[0], scheduler=scheduler),
-            ).subscribe(on_completed=lambda: reset_delay(scheduler))
-
-        def stop_reset():
-            current_stable_subscription[0].dispose()
+        def reset_delay():
+            delays[0] = delays_pattern()
+        reset_delay()
 
         def deferred_action(scheduler):
             return reactivex.concat_with_iterable(
-                source.pipe(
-                    do_action(on_completed=stop_reset),
-                    operators.delay_subscription(current_delay[0], scheduler=scheduler),
-                    do_action(on_completed=lambda: increment_delay(scheduler)),
-                ) for _ in gen
+                obs for obs in delay_generator(scheduler)
             )
 
 

@@ -5,7 +5,7 @@ from reactivex.notification import OnError
 from reactivex.testing import ReactiveTest, TestScheduler
 from reactivex.testing.subscription import Subscription
 
-from bittrade_kraken_websocket.connection.reconnect import retry_reconnect
+from bittrade_kraken_websocket.connection.reconnect import repeat_with_backoff
 from bittrade_kraken_websocket.events.events import EVENT_SUBSCRIBE
 from bittrade_kraken_websocket.events.request_response import request_response, _response_ok, RequestResponseError
 from tests.helpers.from_sample import from_sample
@@ -27,7 +27,7 @@ def test_reconnect_completes_after_stabilized():
     stabilized = scheduler.create_cold_observable(on_completed(5.0))
     def create():
         return source.pipe(
-            retry_reconnect(stabilized)
+            repeat_with_backoff(stabilized)
         )
 
     results = scheduler.start(create, created=1, subscribed=2, disposed=25)
@@ -49,7 +49,7 @@ def test_reconnect_completes_before_stabilized():
     stabilized = scheduler.create_cold_observable(on_completed(12.0))
     def create():
         return source.pipe(
-            retry_reconnect(stabilized)
+            repeat_with_backoff(stabilized)
         )
 
     results = scheduler.start(create, created=1, subscribed=2, disposed=75)
@@ -127,7 +127,7 @@ def test_reconnect_complex_case():
     source = Observable(factory)
     def create():
         return source.pipe(
-            retry_reconnect(stabilized)
+            repeat_with_backoff(stabilized)
         )
 
     results = scheduler.start(create, created=1, subscribed=2, disposed=75)
@@ -152,5 +152,5 @@ def test_reconnect_complex_case():
         # tries to connect and errors at 63
         on_error(63, TypeError('pop from empty list'))
     ]
-    
+
 

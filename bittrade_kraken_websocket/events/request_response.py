@@ -25,9 +25,12 @@ def request_response(sender: Observer[Dict], messages: Observable[Dict | List], 
             status_event_type = f'{"subscription" if is_subscription_request else event_type}Status'
 
         taker = operators.take(1)
+        good_status = "ok"
+        bad_status = "error"
         if is_subscription_request:
             sub_channels = list(value['pair'])
             taker = operators.take_while(lambda _x: len(sub_channels) > 0, inclusive=True)
+            good_status = "subscribed"
 
         def correct_id(message: Dict | List):
             try:
@@ -59,7 +62,7 @@ def request_response(sender: Observer[Dict], messages: Observable[Dict | List], 
             )
             if raise_on_status:
                 merged = merged.pipe(
-                    response_ok()
+                    response_ok(good_status, bad_status)
                 )
             value['reqid'] = message_id
             sender.on_next(value)

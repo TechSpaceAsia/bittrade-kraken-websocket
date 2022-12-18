@@ -14,6 +14,7 @@ def websocket_connection(url: str) -> Observable[WebsocketMessage]:
     def subscribe(observer: Observer, scheduler=None):
         def on_error(ws, error):
             logger.error('Websocket errored %s', error)
+            observer.on_next((ws, WEBSOCKET_CLOSED))
             observer.on_error(error)
 
         def on_close(ws, close_status_code, close_msg):

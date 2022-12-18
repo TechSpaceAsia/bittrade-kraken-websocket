@@ -13,6 +13,7 @@ from rich.logging import RichHandler
 from concurrent.futures import ThreadPoolExecutor
 
 from bittrade_kraken_websocket.connection.status import connected_socket
+from bittrade_kraken_websocket.development import debug_observer
 from bittrade_kraken_websocket.events.subscribe import subscribe_ticker
 from bittrade_kraken_websocket.messages.heartbeat import ignore_heartbeat
 from bittrade_kraken_websocket.messages.json import to_json
@@ -36,7 +37,7 @@ messages = socket_connection.pipe(
 ticker = connected.pipe(
     subscribe_ticker(messages, 'USDT/USD', 'ETH/USD')
 )
-ticker.subscribe(pretty_print, pretty_print, pretty_print)
+ticker.subscribe(debug_observer('TICKER'))
 
 sub = socket_connection.connect()
 executor = ThreadPoolExecutor()

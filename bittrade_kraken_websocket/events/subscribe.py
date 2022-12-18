@@ -36,6 +36,7 @@ def subscribe_ticker(messages: Observable[Dict | List], *pairs, timeout=None):
             recorded_messages = messages.pipe(
                 filter_channel_messages(CHANNEL_TICKER),
                 operators.filter(lambda x: x[3] in pairs),
+                operators.do_action(on_next=lambda x: print('YOOOO', x), on_completed=lambda: print('MEEEEEHHHHH')),
                 replay()
             )
             recorded_messages.subscribe(
@@ -46,8 +47,8 @@ def subscribe_ticker(messages: Observable[Dict | List], *pairs, timeout=None):
                     operators.take(1)
                 ).subscribe(on_next=lambda m: connection.send(orjson.dumps(m)), scheduler=scheduler)
                 caller(request_message).subscribe(
-                    on_next=lambda m: logger.info('Subscription message received'),
-                    on_completed=lambda: logger.debug('COMPLETED'),
+                    on_next=lambda m: logger.info('Subscription message received %s', m),
+                    on_completed=lambda: logger.debug('Completed ticker subscription'),
                     on_error=lambda err: observer.on_error(err) and logger.error('Failed to get subscription message %s', err) and sender_sub.dispose()
                 )
 

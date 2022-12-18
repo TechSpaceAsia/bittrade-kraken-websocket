@@ -11,7 +11,7 @@ def _is_channel_message(*channels):
     return func
 
 
-def filter_channel_messages(*channels: List[str]):
-    return operators.filter(_is_channel_message(channels))
+def filter_channel_messages(*channels):
+    return operators.filter(_is_channel_message(*channels))
 
 

@@ -21,7 +21,7 @@ def subscribe(channel: str, pair: str=''):
     return _subscribe
 
 def subscribe_ticker(messages: Observable[Dict | List], *pairs, timeout=None):
-    MESSAGE = {
+    request_message = {
         "event": EVENT_SUBSCRIBE,
         "pair": pairs,
         "subscription": {
@@ -45,7 +45,7 @@ def subscribe_ticker(messages: Observable[Dict | List], *pairs, timeout=None):
                 sender_sub = sender.pipe(
                     operators.take(1)
                 ).subscribe(on_next=lambda m: connection.send(orjson.dumps(m)), scheduler=scheduler)
-                caller(MESSAGE).subscribe(
+                caller(request_message).subscribe(
                     on_next=lambda m: logger.info('Subscription message received'),
                     on_completed=lambda: logger.debug('COMPLETED'),
                     on_error=lambda err: observer.on_error(err) and logger.error('Failed to get subscription message %s', err) and sender_sub.dispose()

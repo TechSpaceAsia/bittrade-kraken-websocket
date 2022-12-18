@@ -1,3 +1,4 @@
+import functools
 import time
 from typing import Callable, Dict, List, Optional
 
@@ -23,26 +24,38 @@ def request_response(sender: Observer[Dict], messages: Observable[Dict | List], 
         if event_type:
             status_event_type = f'{"subscription" if is_subscription_request else event_type}Status'
 
+        taker = operators.take(1)
+        if is_subscription_request:
+            sub_channels = list(value['pair'])
+            taker = operators.take_while(lambda _x: len(sub_channels) > 0, inclusive=True)
+
         def correct_id(message: Dict | List):
             try:
                 if status_event_type and message['event'] != status_event_type:
                     return False
                 if is_subscription_request:
-                    return message['subscription']['name'] == value['subscription']['name']
+                    sub = message['subscription']
+                    return sub['name'] == value['subscription']['name'] and message['pair'] in sub_channels
                 return message['reqid'] == message_id
             except:  # anything goes wrong, just pass
                 return False
 
         def subscribe(observer: Observer, scheduler=None):
+            filter_operators = [operators.filter(correct_id),]
+            if is_subscription_request:
+                filter_operators.append(
+                    operators.do_action(on_next=lambda x: sub_channels.remove(x['pair']))
+                )
+
             merged = reactivex.merge(
                 messages.pipe(
-                    operators.filter(correct_id)
+                    *filter_operators
                 ),
                 timeout.pipe(
                     operators.flat_map(reactivex.throw(TimeoutError())),
                 )
             ).pipe(
-                operators.take(1 if not is_subscription_request else len(value['pair']))
+                taker
             )
             if raise_on_status:
                 merged = merged.pipe(
@@ -61,7 +74,7 @@ class RequestResponseError(Exception):
     pass
 
 
-def _response_ok(response):
+def _response_ok(response, good_status="ok", bad_status="error"):
     """
     Example from kraken:
     {
@@ -79,14 +92,14 @@ or {
 }
     """
     try:
-        if response['status'] == 'error':
+        if response['status'] == bad_status:
             raise RequestResponseError(response['errorMessage'])
-        elif response['status'] == 'ok':
+        elif response['status'] == good_status:
             return response
         raise RequestResponseError('Unknown status')
     except KeyError:
         raise Exception('Unknown response type')
 
 
-def response_ok():
-    return operators.map(_response_ok)
+def response_ok(good_status="ok", bad_status="error"):
+    return operators.map(lambda response: _response_ok(response, good_status, bad_status))

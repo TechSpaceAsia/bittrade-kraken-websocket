@@ -2,7 +2,10 @@ import pytest
 from reactivex.notification import OnError
 from reactivex.testing import ReactiveTest, TestScheduler
 from reactivex.testing.subscription import Subscription
+
+from bittrade_kraken_websocket.events.events import EVENT_SUBSCRIBE
 from bittrade_kraken_websocket.events.request_response import request_response, _response_ok, RequestResponseError
+from tests.helpers.from_sample import from_sample
 
 on_next = ReactiveTest.on_next
 on_error = ReactiveTest.on_error
@@ -145,6 +148,14 @@ def test_response_ok():
         _response_ok({"other stuff": "error", "errorMessage": "lala"})
 
 
+def test_response_ok_other_status():
+    assert _response_ok({"status": "subscribed", "lala": "blop"}, good_status="subscribed") == {"status": "subscribed", "lala": "blop"}
+    with pytest.raises(RequestResponseError) as exc:
+        _response_ok({"status": "bad one", "errorMessage": "lala"}, bad_status="bad one")
+    with pytest.raises(Exception) as exc:
+        _response_ok({"other stuff": "error", "errorMessage": "lala", "status": "other"}, "good", "bad")
+
+
 def test_request_response_status_error():
     scheduler = TestScheduler()
     sender = scheduler.create_observer()
@@ -163,3 +174,90 @@ def test_request_response_status_error():
     result = scheduler.start(create)
     assert result.messages[0].value.kind == 'E'
     assert result.messages[0].time == 500
+
+def test_request_response_success_reuse_different_ids():
+    scheduler = TestScheduler()
+    sender = scheduler.create_observer()
+    messages = scheduler.create_hot_observable(
+        on_next(300, {"event": "addOrderStatus", "reqid": 100, "more": "stuff"}),
+        on_next(600, {"event": "addOrderStatus", "reqid": 100, "more": "stuff again"}),
+        on_next(700, {"event": "addOrderStatus", "reqid": 9}),
+        on_next(800, {"event": "addOrderStatus", "reqid": 5, "more": "LADIDA"}),
+        on_next(900, {"event": "addOrderStatus", "reqid": 100, "more": "stuff again"}),
+    )
+    # Important! This confirms that the timeout is "per request" since we are still live at t=900. As long as the timeout isn't exceeded between t=0-500 and t=680-900
+    timeout = scheduler.create_cold_observable(on_next(400, None))
+
+    factory = request_response(sender, messages, timeout, "addOrder")
+
+    o1 = factory({"abc": 42}, 100)
+    o2 = factory({"abc": 43}, 5)
+    v = scheduler.create_observer()
+    scheduler.schedule_absolute(650, lambda *_: o2.subscribe(v))
+    o1.subscribe(v) # unlike when using `start` this sub starts at 0, not 200
+    scheduler.start()
+    assert v.messages == [
+        on_next(300, {"event": "addOrderStatus", "reqid": 100, "more": "stuff"}),
+        on_completed(300),
+        on_next(800, {"event": "addOrderStatus", "reqid": 5, "more": "LADIDA"}),
+        on_completed(800),
+    ]
+
+    assert messages.subscriptions == [Subscription(0.0, 300.0), Subscription(650.0, 800)]
+    assert timeout.subscriptions == messages.subscriptions
+
+def test_request_response_subscription():
+    scheduler = TestScheduler()
+    sender = scheduler.create_observer()
+    messages = scheduler.create_hot_observable(
+        from_sample('../samples/subscribe.jsonl')
+    )
+    timeout = scheduler.create_cold_observable(on_next(400, None))
+    caller = request_response(
+        sender, messages, timeout, event_type=EVENT_SUBSCRIBE
+    )
+    results = scheduler.start(lambda: caller({'event': 'subscribe', 'pair': ['USDT/USD'], 'subscription':{'name': 'ticker'}}))
+
+    assert results.messages == [
+        on_next(220, {"channelID":1028,"channelName":"ticker","event":"subscriptionStatus","pair":"USDT/USD","status":"subscribed","subscription":{"name":"ticker"}}),
+        on_completed(220)
+    ]
+
+
+def test_request_response_subscription_wrong_pair():
+    scheduler = TestScheduler()
+    sender = scheduler.create_observer()
+    messages = scheduler.create_hot_observable(
+        from_sample('../samples/subscribe.jsonl')
+    )
+    timeout = scheduler.create_cold_observable(on_next(300, None))
+    caller = request_response(
+        sender, messages, timeout, event_type=EVENT_SUBSCRIBE
+    )
+    results = scheduler.start(lambda: caller({'event': 'subscribe', 'pair': ['XBT/USD'], 'subscription':{'name': 'ticker'}}))
+
+    assert results.messages == [
+        on_error(500, TimeoutError())
+    ]
+
+def test_request_response_subscription_multiple_pairs():
+    scheduler = TestScheduler()
+    sender = scheduler.create_observer()
+    messages = scheduler.create_hot_observable(
+        from_sample('../samples/subscribe.jsonl')
+    )
+    timeout = scheduler.create_cold_observable(on_next(900, None))
+    caller = request_response(
+        sender, messages, timeout, event_type=EVENT_SUBSCRIBE
+    )
+    results = scheduler.start(
+        lambda: caller({'event': 'subscribe', 'pair': ['USDT/USD', 'XRP/USD'], 'subscription': {'name': 'ticker'}}))
+
+    assert results.messages == [
+        on_next(220, {"channelID":1028,"channelName":"ticker","event":"subscriptionStatus","pair":"USDT/USD","status":"subscribed","subscription":{"name":"ticker"}}),
+        on_next(270, {"channelID":900,"channelName":"ticker","event":"subscriptionStatus","pair":"XRP/USD","status":"subscribed","subscription":{"name":"ticker"}}),
+        on_completed(270)
+    ]
+
+
+

@@ -3,16 +3,17 @@ from typing import TypeVar, Optional
 from collections.abc import Generator
 
 import reactivex
-from reactivex import Observable
+from reactivex import Observable, operators
 from reactivex.disposable import Disposable
 from reactivex.operators import take, ignore_elements, do_action
+from bittrade_kraken_websocket.development import info_observer
 
 _T = TypeVar("_T")
 
 logger = getLogger(__name__)
 
 
-def repeat_with_backoff(stabilized: Observable=None, delays_pattern: Optional[Generator[float, None, None]]=None):
+def retry_with_backoff(stabilized: Observable=None, delays_pattern: Optional[Generator[float, None, None]]=None):
     """
     :param: stabilized: An observable that completes after an amount of time (or a condition)
     When it successfully completes, the "delays" are reset to zero and follow the delays_pattern again
@@ -52,21 +53,32 @@ def repeat_with_backoff(stabilized: Observable=None, delays_pattern: Optional[Ge
         current_stable_subscription = [Disposable()]
 
         def delay_generator(scheduler):
-            while True:
+            is_completed = False
+            def complete():
+                nonlocal is_completed
+                is_completed = True
+
+            while not is_completed:
                 delay_by = next(delays[0])
                 current_stable_subscription[0].dispose()
+                if delay_by:
+                    logger.info('Backing off to avoid ban. Waiting %s', delay_by)
                 yield reactivex.interval(delay_by).pipe(
                     take(1),
                     ignore_elements()
                 )
                 current_stable_subscription[0] = stabilized.pipe(
                     take(1),
-                    do_action(on_completed=lambda: print('Resetting at %s', scheduler.clock))
+                    do_action(on_completed=lambda: logger.info('Resetting delays at %s', scheduler.clock))
                 ).subscribe(on_completed=reset_delay, scheduler=scheduler)
-                yield source
+                yield source.pipe(
+                    operators.do_action(on_completed=complete),
+                    operators.catch(reactivex.empty(scheduler)),
+                )
 
 
         delays = [None]
+
 
         def reset_delay():
             delays[0] = delays_pattern()
@@ -76,7 +88,6 @@ def repeat_with_backoff(stabilized: Observable=None, delays_pattern: Optional[Ge
             return reactivex.concat_with_iterable(
                 obs for obs in delay_generator(scheduler)
             )
-
 
         return reactivex.defer(
             deferred_action

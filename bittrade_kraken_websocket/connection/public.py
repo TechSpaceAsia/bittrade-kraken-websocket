@@ -14,5 +14,3 @@ def public_websocket_connection_multicast() -> ConnectableObservable[WebsocketMe
     return public_websocket_connection().pipe(
         publish()
     )
-
-{"event":"subscribe","pair":["USDT/USD"],"subscription":{"name":"ticker"}}

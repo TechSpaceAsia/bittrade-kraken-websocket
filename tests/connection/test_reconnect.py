@@ -5,7 +5,7 @@ from reactivex.notification import OnError
 from reactivex.testing import ReactiveTest, TestScheduler
 from reactivex.testing.subscription import Subscription
 
-from bittrade_kraken_websocket.connection.reconnect import repeat_with_backoff
+from bittrade_kraken_websocket.connection.reconnect import retry_with_backoff
 from bittrade_kraken_websocket.events.events import EVENT_SUBSCRIBE
 from bittrade_kraken_websocket.events.request_response import request_response, _response_ok, RequestResponseError
 from tests.helpers.from_sample import from_sample
@@ -22,12 +22,12 @@ def test_reconnect_completes_after_stabilized():
     source = scheduler.create_cold_observable(
         on_next(3, 42),
         on_next(4, 43),
-        on_completed(10)
+        on_error(10, Exception('HMM'))
     )
     stabilized = scheduler.create_cold_observable(on_completed(5.0))
     def create():
         return source.pipe(
-            repeat_with_backoff(stabilized)
+            retry_with_backoff(stabilized)
         )
 
     results = scheduler.start(create, created=1, subscribed=2, disposed=25)
@@ -44,12 +44,12 @@ def test_reconnect_completes_before_stabilized():
     source = scheduler.create_cold_observable(
         on_next(3, 'A'),
         on_next(4, 'B'),
-        on_completed(10)
+        on_error(10, Exception())
     )
     stabilized = scheduler.create_cold_observable(on_completed(12.0))
     def create():
         return source.pipe(
-            repeat_with_backoff(stabilized)
+            retry_with_backoff(stabilized)
         )
 
     results = scheduler.start(create, created=1, subscribed=2, disposed=75)
@@ -94,30 +94,33 @@ def test_reconnect_complex_case():
         # First one will complete early
         scheduler.create_cold_observable(
             on_next(3, 'A'),
-            on_completed(10)
+            on_error(10, Exception())
         ),
         # Second one too will complete early
         scheduler.create_cold_observable(
             on_next(5, 'A'),
-            on_completed(5)
+            on_error(5, Exception())
         ),
         # Third is stable again but does not emit?
         scheduler.create_cold_observable(
-            on_completed(15)
+            on_error(15, Exception())
         ),
         # Fourth early
         scheduler.create_cold_observable(
             on_next(7, 'A'),
-            on_completed(11)
+            on_error(11, Exception())
         ),
         # 5th early
         scheduler.create_cold_observable(
-            on_completed(5)
+            on_error(5, Exception())
         ),
         # 6th early
         scheduler.create_cold_observable(
             on_next(6, 'AAA'),
-            on_completed(8)
+            on_error(8, Exception())
+        ),
+        scheduler.create_cold_observable(
+            on_completed(2)
         )
     ]
 
@@ -127,7 +130,7 @@ def test_reconnect_complex_case():
     source = Observable(factory)
     def create():
         return source.pipe(
-            repeat_with_backoff(stabilized)
+            retry_with_backoff(stabilized)
         )
 
     results = scheduler.start(create, created=1, subscribed=2, disposed=75)
@@ -149,8 +152,8 @@ def test_reconnect_complex_case():
         # 6th starts at 50
         on_next(56.0, 'AAA'),
         # stops at 58
-        # tries to connect and errors at 63
-        on_error(63, TypeError('pop from empty list'))
+        # completes if underlying one completes?
+        on_completed(65)
     ]
 
 

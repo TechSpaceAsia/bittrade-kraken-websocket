@@ -6,6 +6,8 @@ import orjson
 import reactivex.disposable
 from reactivex import Observable, Observer
 import websocket
+from websocket import WebSocketConnectionClosedException
+
 from bittrade_kraken_websocket.connection.status import WEBSOCKET_OPENED, WEBSOCKET_CLOSED, Status
 from bittrade_kraken_websocket.messages.heartbeat import HEARTBEAT
 
@@ -45,7 +47,7 @@ def websocket_connection(url: str, json_messages=False) -> Observable[WebsocketB
         def on_close(ws, close_status_code, close_msg):
             logger.warning('Websocket closed %s %s', close_status_code, close_msg)
             observer.on_next((enhanced, WEBSOCKET_STATUS, WEBSOCKET_CLOSED))
-            observer.on_completed()
+            observer.on_error(Exception('Socket closed'))
 
         def on_open(ws):
             logger.info('Websocket opened')
@@ -64,6 +66,9 @@ def websocket_connection(url: str, json_messages=False) -> Observable[WebsocketB
         executor.shutdown(wait=False)
         def disconnect():
             logger.info('Releasing resources')
-            connection.close()
+            try:
+                connection.close()
+            except WebSocketConnectionClosedException as exc:
+                logger.error('Socket was already closed %s', exc)
         return reactivex.disposable.Disposable(disconnect)
     return Observable(subscribe)

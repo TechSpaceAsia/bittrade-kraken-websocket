@@ -1,24 +1,24 @@
-from reactivex import operators, Observer, Observable
+from typing import List, Dict, Callable
 
-from bittrade_kraken_websocket.connection.generic import WebsocketMessage
-from bittrade_kraken_websocket.connection.status import WEBSOCKET_OPENED
-from bittrade_kraken_websocket.messages.heartbeat import HEARTBEAT
+import orjson
+from reactivex import operators, Observable, compose
 
+from bittrade_kraken_websocket.connection.generic import WebsocketBundle, WEBSOCKET_MESSAGE
 
-def get_messages():
-    def _get_messages(source: Observable[WebsocketMessage]) -> Observable[str]:
-        def subscribe(observer: Observer, scheduler=None):
-            def on_next(message: WebsocketMessage):
-                connection, status = message
-                if status == WEBSOCKET_OPENED:
-                    connection.on_message = lambda _ws, data: observer.on_next(data)
+def _is_message(message: WebsocketBundle):
+    return message[1] == WEBSOCKET_MESSAGE
 
-            return source.subscribe(
-                on_next=on_next,
-                on_completed=observer.on_completed,
-                on_error=observer.on_error,
-                scheduler=scheduler
-            )
+def _message_only(json_messages: bool):
+    def fn(message: WebsocketBundle):
+        m = message[2]
+        if json_messages:
+            return orjson.loads(m)
+        return m
 
-        return Observable(subscribe)
-    return _get_messages
+    return fn
+
+def keep_messages_only(json_messages=False) -> Callable[[Observable[WebsocketBundle]], Observable[str | Dict | List]]:
+    return compose(
+        operators.filter(_is_message),
+        operators.map(_message_only(json_messages)),
+    )

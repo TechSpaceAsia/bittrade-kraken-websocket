@@ -3,60 +3,66 @@ from logging import getLogger
 
 import orjson
 from reactivex import Observable, Observer, operators, Subject, interval
-from reactivex.disposable import CompositeDisposable
-from reactivex.operators import replay, take
+from reactivex.disposable import CompositeDisposable, Disposable
+from reactivex.operators import replay, take, publish
+from reactivex.subject import BehaviorSubject
 from websocket import WebSocketApp
 
 from bittrade_kraken_websocket.channels import CHANNEL_TICKER
-from bittrade_kraken_websocket.events.events import EVENT_SUBSCRIBE
+from bittrade_kraken_websocket.connection.generic import EnhancedWebsocket
+from bittrade_kraken_websocket.events.events import EVENT_SUBSCRIBE, EVENT_UNSUBSCRIBE
 from bittrade_kraken_websocket.events.request_response import request_response
 from bittrade_kraken_websocket.messages.filters.kind import filter_channel_messages
 
 logger = getLogger(__name__)
-def subscribe(channel: str, pair: str=''):
-    def _subscribe(source: Observable[Tuple[WebSocketApp, Dict | List]]):
-        def observable_subscribe(observer: Observer, scheduler=None):
-            pass
-        return Observable(observable_subscribe)
-    return _subscribe
-
-def subscribe_ticker(messages: Observable[Dict | List], *pairs, timeout=None):
+def subscribe_to_channel(messages: Observable[Dict | List], channel: str, pair: str= '', timeout=None):
+    timeout = timeout or interval(1.0)
     request_message = {
         "event": EVENT_SUBSCRIBE,
-        "pair": pairs,
         "subscription": {
-            "name": CHANNEL_TICKER
+            "name": channel
         }
     }
-    timeout = timeout or interval(1.0)
+    if pair:
+        request_message['pair'] = [pair]
+
+    unsubscribe_request_message = dict(request_message)
+    unsubscribe_request_message['event'] = EVENT_UNSUBSCRIBE
+
     sender = Subject()
     caller = request_response(sender, messages, timeout, EVENT_SUBSCRIBE, raise_on_status=True)
-    def _subscribe_ticker(source: Observable[Observer]) -> Observable[List]:
-        def factory(observer: Observer, scheduler=None):
-            recorded_messages = messages.pipe(
-                filter_channel_messages(CHANNEL_TICKER),
-                operators.filter(lambda x: x[3] in pairs),
-                operators.do_action(on_next=lambda x: print('YOOOO', x), on_completed=lambda: print('MEEEEEHHHHH')),
-                replay()
-            )
-            recorded_messages.subscribe(
-                observer
-            )
-            def on_socket(connection):
-                sender_sub = sender.pipe(
-                    operators.take(1)
-                ).subscribe(on_next=lambda m: connection.send(orjson.dumps(m)), scheduler=scheduler)
-                caller(request_message).subscribe(
-                    on_next=lambda m: logger.info('Subscription message received %s', m),
-                    on_completed=lambda: logger.debug('Completed ticker subscription'),
-                    on_error=lambda err: observer.on_error(err) and logger.error('Failed to get subscription message %s', err) and sender_sub.dispose()
-                )
+    def _subscribe(source: Observable[EnhancedWebsocket]):
 
-
-            sub = source.subscribe(on_next=on_socket, scheduler=scheduler)
-            return CompositeDisposable(
-                sub,
-                recorded_messages.connect(scheduler=scheduler)
+        def on_socket_emitted(connection: EnhancedWebsocket):
+            sender.pipe(
+                take(1),
+            ).subscribe(
+                on_next=connection.send_json
             )
-        return Observable(factory)
-    return _subscribe_ticker
+            caller(request_message).subscribe()
+
+        def observable_subscribe(observer: Observer, scheduler=None):
+            socket_bs: BehaviorSubject = BehaviorSubject(None)
+            source_multicast = source.pipe(
+                publish()
+            )
+            def unsubscribe_channel():
+                if connection := socket_bs.value:
+                    connection.send_json(unsubscribe_request_message)
+
+            # Sender will trigger when calling the caller; when that happens, we want to send request to websocket
+            source_multicast.subscribe(socket_bs)
+
+            sub = CompositeDisposable(
+                messages.pipe(
+                    filter_channel_messages(channel),
+                    operators.filter(lambda x: True if not pair else x[3] == pair),
+                ).subscribe(observer),
+                source_multicast.subscribe(on_next=on_socket_emitted),
+                Disposable(action=unsubscribe_channel),
+            )
+            source_multicast.connect()
+            return sub
+
+        return Observable(observable_subscribe)
+    return _subscribe

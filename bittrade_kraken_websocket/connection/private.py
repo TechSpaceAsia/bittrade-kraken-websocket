@@ -1,29 +1,35 @@
 from typing import Dict
 
-from websocket import WebSocketApp
-import orjson
+from reactivex import Observable, Observer
+from reactivex.operators import flat_map, take
 
-from bittrade_kraken_websocket.connection.generic import websocket_connection
-
-
-class AuthenticatedWebsocket:
-    token: str = ''
-
-    def __init__(self, underlying_socket, token):
-        self.underlying_socket = underlying_socket
-        self.token = token
-
-    def send_json(self, payload: Dict):
-        return self.underlying_socket.send(orjson.dumps(payload))
-
-    def send_private(self, payload: Dict):
-        # if subscription, token goes into that, otherwise goes to top level
-        put_token_into = payload.get('subscription', payload)
-        put_token_into['token'] = self.token
-        return self.send_json(payload)
+from bittrade_kraken_websocket.connection.generic import websocket_connection, WebsocketBundle, WEBSOCKET_STATUS
+from bittrade_kraken_websocket.connection.status import WEBSOCKET_AUTHENTICATED
 
 
-def private_websocket_connection():
+def add_token(token_generator: Observable[str]):
+    def _add_token(source: Observable[WebsocketBundle]) -> Observable[WebsocketBundle]:
+
+        def subscribe(observer: Observer, scheduler=None):
+            def on_next(bundle: WebsocketBundle):
+                connection, *_ = bundle
+                try:
+                    token = token_generator.pipe(take(1)).run()
+                    connection.token = token
+                    observer.on_next([connection, WEBSOCKET_STATUS, WEBSOCKET_AUTHENTICATED])
+                except Exception as exc:
+                    observer.on_error(exc)
+            source.subscribe(
+                on_next=on_next,
+                on_completed=observer.on_completed, on_error=observer.on_error, scheduler=scheduler
+            )
+        return Observable(subscribe)
+    return _add_token
+
+
+def private_websocket_connection(token_generator: Observable[str]):
     return websocket_connection(
         'wss://ws-auth.kraken.com'
+    ).pipe(
+        add_token(token_generator)
     )

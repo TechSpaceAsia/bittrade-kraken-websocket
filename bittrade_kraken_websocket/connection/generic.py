@@ -22,11 +22,13 @@ class EnhancedWebsocket():
     is_private: bool
     _lock: Lock
 
-    def __init__(self, socket, token_generator):
+    def __init__(self, socket: websocket.WebSocketApp, token_generator: Optional[Observable[str]]=None, token=''):
+        # Note that the token_generator will not be used if token is passed
         self.socket = socket
         self._token_generator = token_generator
-        self.is_private = token_generator != None
+        self.is_private = token_generator is not None
         self._lock = Lock()
+        self.token = token
 
     def send_json(self, payload: Dict):
         # private socket always requires token
@@ -50,9 +52,10 @@ MessageTypes = Literal[WEBSOCKET_STATUS, WEBSOCKET_HEARTBEAT, WEBSOCKET_MESSAGE]
 WebsocketBundle = Tuple[EnhancedWebsocket, MessageTypes, Union[Status, str, Dict, List]]
 
 
-def websocket_connection(token_generator: Optional[Observable[str]]=None) -> Observable[WebsocketBundle]:
-    is_private = token_generator != None
+def websocket_connection(token_generator: Optional[Observable[str]] = None) -> Observable[WebsocketBundle]:
+    is_private = token_generator is not None
     url = f'wss://ws{"-auth" if is_private else ""}.kraken.com'
+
     def subscribe(observer: Observer, scheduler=None):
         def on_error(ws, error):
             logger.error('Websocket errored %s', error)

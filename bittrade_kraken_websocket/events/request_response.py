@@ -3,7 +3,7 @@ import time
 from typing import Callable, Dict, List, Optional
 
 import reactivex
-from reactivex import Observable, operators, Observer
+from reactivex import Observable, operators, Observer, compose
 from reactivex.operators import do_action
 
 from bittrade_kraken_websocket.events.events import EventType, EVENT_SUBSCRIBE
@@ -13,6 +13,17 @@ from logging import getLogger
 logger = getLogger(__name__)
 
 EventCaller = Callable[[Dict, int], Observable]
+
+def wait_for_response(is_match: Callable, timeout: Observable):
+    return compose(
+        operators.merge(
+            timeout.pipe(
+                operators.flat_map(reactivex.throw(TimeoutError()))
+            )
+        ),
+        operators.filter(is_match),
+        operators.take(1)
+    )
 
 
 def request_response(sender: Observer[Dict], messages: Observable[Dict | List], timeout: Observable,
@@ -77,6 +88,18 @@ def request_response(sender: Observer[Dict], messages: Observable[Dict | List], 
 
     return trigger_event
 
+
+def build_match_checker(message: Dict):
+    is_subscription_request = message['event'] == EVENT_SUBSCRIBE
+    request_id = message.get('reqid')
+    def matcher(message: Dict | List):
+        if type(message) == list:
+            return False
+        if request_id:
+            return message.get('reqid') == request_id
+
+
+    return matcher
 
 class RequestResponseError(Exception):
     pass

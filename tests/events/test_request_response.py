@@ -1,10 +1,11 @@
 import pytest
-from reactivex.notification import OnError
+import reactivex
 from reactivex.testing import ReactiveTest, TestScheduler
 from reactivex.testing.subscription import Subscription
 
 from bittrade_kraken_websocket.events.events import EVENT_SUBSCRIBE
-from bittrade_kraken_websocket.events.request_response import request_response, _response_ok, RequestResponseError
+from bittrade_kraken_websocket.events.request_response import request_response, _response_ok, RequestResponseError, \
+    wait_for_response, build_match_checker
 from tests.helpers.from_sample import from_sample
 
 on_next = ReactiveTest.on_next
@@ -34,6 +35,7 @@ def test_request_response_timeout_using_next():
     assert messages.subscriptions == [Subscription(200.0, 800.0)]
     assert timeout.subscriptions == [Subscription(200.0, 800.0)]
 
+
 def test_request_response_timeout_using_error():
     scheduler = TestScheduler()
     sender = scheduler.create_observer()
@@ -54,6 +56,7 @@ def test_request_response_timeout_using_error():
 
     assert messages.subscriptions == [Subscription(200.0, 400.0)]
     assert timeout.subscriptions == [Subscription(200.0, 400.0)]
+
 
 def test_request_response_success():
     scheduler = TestScheduler()
@@ -126,7 +129,7 @@ def test_request_response_success_repeat_same_id():
     o2 = factory({"abc": 43}, 100)
     v = scheduler.create_observer()
     scheduler.schedule_absolute(680, lambda *_: o2.subscribe(v))
-    o1.subscribe(v) # unlike when using `start` this sub starts at 0, not 200
+    o1.subscribe(v)  # unlike when using `start` this sub starts at 0, not 200
     scheduler.start()
     assert v.messages == [
         on_next(500, {"event": "addOrderStatus", "reqid": 100, "more": "stuff"}),
@@ -149,7 +152,8 @@ def test_response_ok():
 
 
 def test_response_ok_other_status():
-    assert _response_ok({"status": "subscribed", "lala": "blop"}, good_status="subscribed") == {"status": "subscribed", "lala": "blop"}
+    assert _response_ok({"status": "subscribed", "lala": "blop"}, good_status="subscribed") == {"status": "subscribed",
+                                                                                                "lala": "blop"}
     with pytest.raises(RequestResponseError) as exc:
         _response_ok({"status": "bad one", "errorMessage": "lala"}, bad_status="bad one")
     with pytest.raises(Exception) as exc:
@@ -175,6 +179,7 @@ def test_request_response_status_error():
     assert result.messages[0].value.kind == 'E'
     assert result.messages[0].time == 500
 
+
 def test_request_response_success_reuse_different_ids():
     scheduler = TestScheduler()
     sender = scheduler.create_observer()
@@ -194,7 +199,7 @@ def test_request_response_success_reuse_different_ids():
     o2 = factory({"abc": 43}, 5)
     v = scheduler.create_observer()
     scheduler.schedule_absolute(650, lambda *_: o2.subscribe(v))
-    o1.subscribe(v) # unlike when using `start` this sub starts at 0, not 200
+    o1.subscribe(v)  # unlike when using `start` this sub starts at 0, not 200
     scheduler.start()
     assert v.messages == [
         on_next(300, {"event": "addOrderStatus", "reqid": 100, "more": "stuff"}),
@@ -206,6 +211,7 @@ def test_request_response_success_reuse_different_ids():
     assert messages.subscriptions == [Subscription(0.0, 300.0), Subscription(650.0, 800)]
     assert timeout.subscriptions == messages.subscriptions
 
+
 def test_request_response_subscription():
     scheduler = TestScheduler()
     sender = scheduler.create_observer()
@@ -216,10 +222,12 @@ def test_request_response_subscription():
     caller = request_response(
         sender, messages, timeout, event_type=EVENT_SUBSCRIBE
     )
-    results = scheduler.start(lambda: caller({'event': 'subscribe', 'pair': ['USDT/USD'], 'subscription':{'name': 'ticker'}}))
+    results = scheduler.start(
+        lambda: caller({'event': 'subscribe', 'pair': ['USDT/USD'], 'subscription': {'name': 'ticker'}}))
 
     assert results.messages == [
-        on_next(220, {"channelID":1028,"channelName":"ticker","event":"subscriptionStatus","pair":"USDT/USD","status":"subscribed","subscription":{"name":"ticker"}}),
+        on_next(220, {"channelID": 1028, "channelName": "ticker", "event": "subscriptionStatus", "pair": "USDT/USD",
+                      "status": "subscribed", "subscription": {"name": "ticker"}}),
         on_completed(220)
     ]
 
@@ -234,11 +242,13 @@ def test_request_response_subscription_wrong_pair():
     caller = request_response(
         sender, messages, timeout, event_type=EVENT_SUBSCRIBE
     )
-    results = scheduler.start(lambda: caller({'event': 'subscribe', 'pair': ['XBT/USD'], 'subscription':{'name': 'ticker'}}))
+    results = scheduler.start(
+        lambda: caller({'event': 'subscribe', 'pair': ['XBT/USD'], 'subscription': {'name': 'ticker'}}))
 
     assert results.messages == [
         on_error(500, TimeoutError())
     ]
+
 
 def test_request_response_subscription_multiple_pairs():
     scheduler = TestScheduler()
@@ -254,10 +264,60 @@ def test_request_response_subscription_multiple_pairs():
         lambda: caller({'event': 'subscribe', 'pair': ['USDT/USD', 'XRP/USD'], 'subscription': {'name': 'ticker'}}))
 
     assert results.messages == [
-        on_next(220, {"channelID":1028,"channelName":"ticker","event":"subscriptionStatus","pair":"USDT/USD","status":"subscribed","subscription":{"name":"ticker"}}),
-        on_next(270, {"channelID":900,"channelName":"ticker","event":"subscriptionStatus","pair":"XRP/USD","status":"subscribed","subscription":{"name":"ticker"}}),
+        on_next(220, {"channelID": 1028, "channelName": "ticker", "event": "subscriptionStatus", "pair": "USDT/USD",
+                      "status": "subscribed", "subscription": {"name": "ticker"}}),
+        on_next(270, {"channelID": 900, "channelName": "ticker", "event": "subscriptionStatus", "pair": "XRP/USD",
+                      "status": "subscribed", "subscription": {"name": "ticker"}}),
         on_completed(270)
     ]
 
 
+def test_wait_for_response_got_it():
+    scheduler = TestScheduler()
+    messages = scheduler.create_hot_observable(
+        on_next(100, {'status': 'yolo'}),  # this will be missed since we only subscribe at 200
+        on_next(250, {}),
+        on_next(350, {'status': 'lala'}),
+        on_next(450, {'status': 'yolo'}),
+        on_next(550, {'status': 'yolo'}),
+    )
+    timeout = reactivex.interval(800, scheduler=scheduler)
 
+    def is_match(m):
+        return m.get('status') == 'yolo'
+
+    results = scheduler.start(lambda: messages.pipe(wait_for_response(is_match, timeout)))
+
+    assert results.messages == [
+        on_next(450, {'status': 'yolo'}),
+        on_completed(450),
+    ]
+
+
+def test_wait_for_response_timeout():
+    scheduler = TestScheduler()
+    messages = scheduler.create_hot_observable(
+        on_next(100, {'status': 'yolo'}),  # this will be missed since we only subscribe at 200
+        on_next(250, {}),
+        on_next(350, {'status': 'lala'}),
+        on_next(450, {'status': 'yolo'}),
+        on_next(550, {'status': 'yolo'}),
+    )
+    timeout = reactivex.interval(230, scheduler=scheduler)
+
+    def is_match(m):
+        return m.get('status') == 'yolo'
+
+    results = scheduler.start(lambda: messages.pipe(wait_for_response(is_match, timeout)))
+
+    assert results.messages == [
+        on_error(200 + 230, TimeoutError()),
+    ]
+
+def test_match_builder():
+    matcher = build_match_checker({'event': 'abc'})
+    assert not matcher([]), 'Lists should never match'
+    matcher = build_match_checker({
+        'event': EVENT_SUBSCRIBE,
+        'suscription'
+    })

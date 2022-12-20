@@ -1,5 +1,6 @@
 import functools
 import time
+import uuid
 from typing import Callable, Dict, List, Optional
 
 import reactivex
@@ -26,79 +27,34 @@ def wait_for_response(is_match: Callable, timeout: Observable):
     )
 
 
-def request_response(sender: Observer[Dict], messages: Observable[Dict | List], timeout: Observable,
-                     event_type: Optional[EventType] = None, raise_on_status: bool = False) -> EventCaller:
-    def trigger_event(value: Dict, reqid: int = 0):
-        message_id = reqid or int(1e6 * time.time())
-        """Subscription to channels such as ticker are a bit special so prepare to handle them"""
-        is_subscription_request = event_type == EVENT_SUBSCRIBE
-
-        status_event_type = ''
-        if event_type:
-            """Name of response 'event' value is <your event e.g.addOrder>Status unless it's a subscription then it's subscriptionStatus"""
-            status_event_type = f'{"subscription" if is_subscription_request else event_type}Status'
-
-        """
-        Single requests like addOrder will only send one item back.
-        Channels subscription can on the other hand have multiple "pairs" and they then get acknowledged one at a time
-        Also single requests have status: ok/error, channel subscriptions receive "subscribed" 
-        """
-        taker = operators.take(1)
-        good_status = "ok"
-        bad_status = "error"
-        pending_pairs = []
-        if is_subscription_request:
-            pending_pairs = list(value.get('pair', []))
-            taker = operators.take_while(lambda _x: len(pending_pairs) > 0, inclusive=True)
-            good_status = "subscribed"
-
-        def keep_correct_id(message: Dict | List):
-            return is_correct_id(
-                message, status_event_type, is_subscription_request, value, message_id, pending_pairs
-            )
+def request_response(sender: Observer[Dict], messages: Observable[Dict | List], timeout: Observable) -> EventCaller:
+    def send_event_message(request_message: Dict):
+        if 'reqid' not in request_message:
+            request_message['reqid'] = uuid.uuid4().int & (1 << 64)-1
 
         def subscribe(observer: Observer, scheduler=None):
-            filter_operators = [operators.filter(keep_correct_id), ]
-            if is_subscription_request and pending_pairs:
-                """This allows to wait for all pairs. pending_pairs basically contains pairs that have not yet received their 'subscribe' event"""
-                filter_operators.append(
-                    operators.do_action(on_next=lambda x: pending_pairs.remove(x['pair']))
-                )
-
-            merged = reactivex.merge(
-                messages.pipe(
-                    *filter_operators
-                ),
-                timeout.pipe(
-                    operators.flat_map(reactivex.throw(TimeoutError())),
+            merged = messages.pipe(
+                wait_for_response(
+                    build_matcher(request_message['reqid']), timeout
                 )
             ).pipe(
-                taker,
-                do_action(on_completed=lambda: logger.info('Received response to request: %s id %s', value, message_id)),
+                do_action(
+                    on_completed=lambda: logger.info('Received response to request: %s', request_message),
+                    on_error=lambda exc: logger.error('Failed to get response for request %s -> %s', request_message, exc)
+                ),
             )
-            if raise_on_status:
-                merged = merged.pipe(
-                    response_ok(good_status, bad_status)
-                )
-            value['reqid'] = message_id
-            sender.on_next(value)
+
+            sender.on_next(request_message)
             return merged.subscribe(observer, scheduler=scheduler)
 
         return Observable(subscribe)
 
-    return trigger_event
+    return send_event_message
 
 
-def build_match_checker(message: Dict):
-    is_subscription_request = message['event'] == EVENT_SUBSCRIBE
-    request_id = message.get('reqid')
+def build_matcher(reqid: int):
     def matcher(message: Dict | List):
-        if type(message) == list:
-            return False
-        if request_id:
-            return message.get('reqid') == request_id
-
-
+        return type(message) == dict and message.get('reqid') == reqid
     return matcher
 
 class RequestResponseError(Exception):

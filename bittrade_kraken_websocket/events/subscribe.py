@@ -30,7 +30,7 @@ def subscribe_to_channel(messages: Observable[Dict | List], channel: str, pair: 
     # sender is just a proxy; once everything is in place within the `caller` below, it will be triggered to send request message
     sender = Subject()
     # prepare a function that can be used to "call and wait for response", mimicking regular http API calls
-    caller = request_response(sender, messages, timeout, EVENT_SUBSCRIBE, raise_on_status=True)
+    caller = request_response(sender, messages, timeout)
 
     def _subscribe_to_channel(source: Observable[EnhancedWebsocket]):
         def observable_subscribe(observer: Observer, scheduler=None):

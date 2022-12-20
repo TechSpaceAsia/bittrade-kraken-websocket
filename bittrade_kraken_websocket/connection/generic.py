@@ -26,7 +26,7 @@ class EnhancedWebsocket():
         # Note that the token_generator will not be used if token is passed
         self.socket = socket
         self._token_generator = token_generator
-        self.is_private = token_generator is not None
+        self.is_private = token_generator is not None or bool(token)
         self._lock = Lock()
         self.token = token
 
@@ -49,7 +49,7 @@ WEBSOCKET_HEARTBEAT = 'WEBSOCKET_HEARTBEAT'
 WEBSOCKET_MESSAGE = 'WEBSOCKET_MESSAGE'
 MessageTypes = Literal[WEBSOCKET_STATUS, WEBSOCKET_HEARTBEAT, WEBSOCKET_MESSAGE]
 
-WebsocketBundle = Tuple[EnhancedWebsocket, MessageTypes, Union[Status, str, Dict, List]]
+WebsocketBundle = Tuple[EnhancedWebsocket, MessageTypes, Union[Status, Dict, List]]
 
 
 def websocket_connection(token_generator: Optional[Observable[str]] = None) -> Observable[WebsocketBundle]:
@@ -58,17 +58,17 @@ def websocket_connection(token_generator: Optional[Observable[str]] = None) -> O
 
     def subscribe(observer: Observer, scheduler=None):
         def on_error(ws, error):
-            logger.error('Websocket errored %s', error)
+            logger.error('[SOCKET] Websocket errored %s', error)
             observer.on_next((enhanced, WEBSOCKET_STATUS, WEBSOCKET_CLOSED))
             observer.on_error(error)
 
         def on_close(ws, close_status_code, close_msg):
-            logger.warning('Websocket closed %s %s', close_status_code, close_msg)
+            logger.warning('[SOCKET] Websocket closed | status: %s, close message: %s', close_status_code, close_msg)
             observer.on_next((enhanced, WEBSOCKET_STATUS, WEBSOCKET_CLOSED))
             observer.on_error(Exception('Socket closed'))
 
         def on_open(ws):
-            logger.info('Websocket opened')
+            logger.info('[SOCKET] Websocket opened')
             observer.on_next((enhanced, WEBSOCKET_STATUS, WEBSOCKET_OPENED))
 
         def on_message(ws, message):
@@ -77,7 +77,7 @@ def websocket_connection(token_generator: Optional[Observable[str]] = None) -> O
             if message == HEARTBEAT:
                 category = WEBSOCKET_HEARTBEAT
             else:
-                logger.debug('[SOCKET MESSAGE] %s', message)
+                logger.debug('[SOCKET] %s', message)
                 if type(pass_message) == dict and pass_message.get('event') == 'systemStatus':
                     category = WEBSOCKET_STATUS
                     pass_message = pass_message['status']
@@ -92,11 +92,11 @@ def websocket_connection(token_generator: Optional[Observable[str]] = None) -> O
         executor.shutdown(wait=False)
 
         def disconnect():
-            logger.info('Releasing resources')
+            logger.info('[SOCKET] Releasing resources')
             try:
                 connection.close()
             except WebSocketConnectionClosedException as exc:
-                logger.error('Socket was already closed %s', exc)
+                logger.error('[SOCKET] Socket was already closed %s', exc)
 
         return reactivex.disposable.Disposable(disconnect)
 

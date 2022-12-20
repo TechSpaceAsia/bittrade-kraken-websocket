@@ -1,5 +1,5 @@
 {"connectionID":17525506704445754232,"event":"systemStatus","status":"online","version":"1.9.0"}
-{"channelID":1028,"channelName":"ticker","event":"subscriptionStatus","pair":"USDT/USD","status":"subscribed","subscription":{"name":"ticker"}}
+{"channelID":1028,"reqid": 12870497960778414923,"channelName":"ticker","event":"subscriptionStatus","pair":"USDT/USD","status":"subscribed","subscription":{"name":"ticker"}}
 [1028,{"a":["1.00010000",426789,"426789.57605757"],"b":["1.00000000",5171860,"5171860.64294804"],"c":["1.00010000","648.25170000"],"v":["53399.98818390","62399506.36396542"],"p":["1.00001685","1.00009951"],"t":[66,9397],"l":["1.00000000","0.99990000"],"h":["1.00010000","1.00030000"],"o":["1.00010000","1.00020000"]},"ticker","USDT/USD"]
 {"event":"heartbeat"}
 {"event":"heartbeat"}

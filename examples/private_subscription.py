@@ -73,12 +73,12 @@ ready_sockets = connection.pipe(
 open_orders = ready_sockets.pipe(
     subscribe_to_channel(all_messages, CHANNEL_OPEN_ORDERS)
 )
-open_orders.subscribe(info_observer('[OPEN ORDERS]'))
+open_orders.subscribe(debug_observer('[OPEN ORDERS]'))
 
 own_trades = ready_sockets.pipe(
     subscribe_to_channel(all_messages, CHANNEL_OWN_TRADES)
 )
-own_trades.subscribe(info_observer('[OPEN ORDERS]'))
+own_trades.subscribe(debug_observer('[OPEN ORDERS]'))
 
 pool_scheduler = ThreadPoolScheduler()
 
@@ -89,6 +89,6 @@ def stop(*args):
     sub.dispose()
 
 
-reactivex.interval(300).pipe(take(1)).subscribe(
+reactivex.interval(60).pipe(take(1)).subscribe(
     on_next=stop
 )

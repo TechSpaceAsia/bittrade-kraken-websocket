@@ -14,7 +14,7 @@ _T = TypeVar("_T")
 logger = getLogger(__name__)
 
 
-def retry_with_backoff(stabilized: Observable=None, delays_pattern: Optional[Generator[float, None, None]]=None):
+def retry_with_backoff(stabilized: Observable = None, delays_pattern: Optional[Generator[float, None, None]] = None):
     """
     :param: stabilized: An observable that should emit after an amount of time (or a condition)
     When it successfully completes, the "delays" are reset to zero and follow the delays_pattern again
@@ -41,7 +41,7 @@ def retry_with_backoff(stabilized: Observable=None, delays_pattern: Optional[Gen
     ```
     """
     if not stabilized:
-        stabilized = reactivex.interval(5.0)
+        stabilized = reactivex.interval(5.0)  # pragma: no cover
     if not delays_pattern:
         def gen():
             yield 0.0
@@ -49,30 +49,34 @@ def retry_with_backoff(stabilized: Observable=None, delays_pattern: Optional[Gen
             yield 1.0
             while True:
                 yield 5.0
+
         delays_pattern = gen
+
     def _retry_reconnect(source: Observable[_T]) -> Observable[_T]:
-        current_stable_subscription = [Disposable(action=lambda *_: logger.info('Cancelling fake initial sub'))]
+        current_stable_subscription = [Disposable(action=lambda *_: logger.info('[BACKOFF] Cancelling fake initial sub'))]
 
         def delay_generator(scheduler):
             is_completed = False
+
             def complete():
                 nonlocal is_completed
                 is_completed = True
 
             while not is_completed:
+                # TODO looks like we're not handling finite cases
                 delay_by = next(delays[0])
                 current_stable_subscription[0].dispose()
-                logger.info('Back off delay is %s', delay_by)
+                logger.info('[BACKOFF] Back off delay is %s', delay_by)
                 yield reactivex.interval(delay_by).pipe(
                     take(1),
                     ignore_elements()
                 )
                 if delay_by:
-                    logger.info('Waited for back off; continuing')
+                    logger.info('[BACKOFF] Waited for back off; continuing')
                 current_stable_subscription[0] = CompositeDisposable(
                     stabilized.pipe(
                         take(1),
-                        do_action(on_completed=lambda: logger.info('Resetting delays'))
+                        do_action(on_completed=lambda: logger.info('[BACKOFF] Resetting delays'))
                     ).subscribe(on_completed=reset_delay),
                 )
                 yield source.pipe(
@@ -80,16 +84,14 @@ def retry_with_backoff(stabilized: Observable=None, delays_pattern: Optional[Gen
                     operators.catch(reactivex.empty(scheduler)),
                 )
 
-
         delays = [delays_pattern()]
 
-
         def reset_delay(*args):
-            logger.info('Delays have been reset')
+            logger.info('[BACKOFF] Delays have been reset')
             try:
                 delays[0] = delays_pattern()
             except Exception as exc:
-                logger.error('Failed to reset delays', exc)
+                logger.error('[BACKOFF] Failed to reset delays', exc)
 
         def deferred_action(scheduler):
             return reactivex.concat_with_iterable(

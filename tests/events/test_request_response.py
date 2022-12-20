@@ -2,12 +2,9 @@ from typing import Dict
 
 import pytest
 import reactivex
-from reactivex import Observer
 from reactivex.testing import ReactiveTest, TestScheduler
-from reactivex.testing.mockobserver import MockObserver
 from reactivex.testing.subscription import Subscription
 
-from bittrade_kraken_websocket.events.events import EVENT_SUBSCRIBE
 from bittrade_kraken_websocket.events.request_response import request_response, _response_ok, RequestResponseError, \
     wait_for_response, build_matcher
 from tests.helpers.from_sample import from_sample

@@ -1,0 +1,6 @@
+{"connectionID": 17279738751521646583, "event": "systemStatus", "status": "online", "version": "1.9.0"}
+{"channelName": "openOrders", "event": "subscriptionStatus", "status": "subscribed", "subscription": {"maxratecount": 180, "name": "openOrders"}}
+[[], "openOrders", {"sequence": 1}]
+[[{"O3OKBR-EKKM5-WJEAEC": {"avg_price": "0.00000000", "cost": "0.00000000", "descr": {"close": null, "leverage": null, "order": "buy 10.00000000 USDT/USD @ limit 0.99800000", "ordertype": "limit", "pair": "USDT/USD", "price": "0.99800000", "price2": "0.00000000", "type": "buy"}, "expiretm": null, "fee": "0.00000000", "limitprice": "0.00000000", "misc": "", "oflags": "fciq,post", "opentm": "1671487359.886110", "refid": null, "starttm": null, "status": "pending", "stopprice": "0.00000000", "timeinforce": "GTC", "userref": 0, "vol": "10.00000000", "vol_exec": "0.00000000"}}], "openOrders", {"sequence": 2}]
+[[{"O3OKBR-EKKM5-WJEAEC": {"status": "open", "userref": 0}}], "openOrders", {"sequence": 3}]
+[[{"O3OKBR-EKKM5-WJEAEC": {"lastupdated": "1671487397.200012", "status": "canceled", "vol_exec": "0.00000000", "cost": "0.00000000", "fee": "0.00000000", "avg_price": "0.00000000", "userref": 0, "cancel_reason": "User requested"}}], "openOrders", {"sequence": 4}]

@@ -13,6 +13,7 @@ from bittrade_kraken_websocket.messages.heartbeat import HEARTBEAT
 
 logger = getLogger(__name__)
 
+
 class EnhancedWebsocket():
     socket: websocket.WebSocketApp
     token: ''
@@ -30,13 +31,14 @@ class EnhancedWebsocket():
         return self.socket.send(orjson.dumps(payload))
 
 
-
 WEBSOCKET_STATUS = 'WEBSOCKET_STATUS'
-WEBSOCKET_HEARBEAT = 'WEBSOCKET_HEARBEAT'
+WEBSOCKET_HEARTBEAT = 'WEBSOCKET_HEARTBEAT'
 WEBSOCKET_MESSAGE = 'WEBSOCKET_MESSAGE'
-MessageTypes = Literal[WEBSOCKET_STATUS, WEBSOCKET_HEARBEAT, WEBSOCKET_MESSAGE]
+MessageTypes = Literal[WEBSOCKET_STATUS, WEBSOCKET_HEARTBEAT, WEBSOCKET_MESSAGE]
 
 WebsocketBundle = Tuple[EnhancedWebsocket, MessageTypes, Union[Status, str, Dict, List]]
+
+
 def websocket_connection(url: str, json_messages=False) -> Observable[WebsocketBundle]:
     def subscribe(observer: Observer, scheduler=None):
         def on_error(ws, error):
@@ -54,7 +56,7 @@ def websocket_connection(url: str, json_messages=False) -> Observable[WebsocketB
             observer.on_next((enhanced, WEBSOCKET_STATUS, WEBSOCKET_OPENED))
 
         def on_message(ws, message):
-            category = WEBSOCKET_MESSAGE if message != HEARTBEAT else WEBSOCKET_HEARBEAT
+            category = WEBSOCKET_MESSAGE if message != HEARTBEAT else WEBSOCKET_HEARTBEAT
             observer.on_next((enhanced, category, message if not json_messages else orjson.loads(message)))
 
         connection = websocket.WebSocketApp(
@@ -64,11 +66,14 @@ def websocket_connection(url: str, json_messages=False) -> Observable[WebsocketB
         executor = ThreadPoolExecutor(thread_name_prefix='WebsocketPool')
         executor.submit(connection.run_forever)
         executor.shutdown(wait=False)
+
         def disconnect():
             logger.info('Releasing resources')
             try:
                 connection.close()
             except WebSocketConnectionClosedException as exc:
                 logger.error('Socket was already closed %s', exc)
+
         return reactivex.disposable.Disposable(disconnect)
+
     return Observable(subscribe)

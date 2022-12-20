@@ -1,30 +1,22 @@
 import logging
-from typing import Tuple
+from os import getenv
 
 import reactivex
-from bittrade_kraken_rest.models.private.get_websockets_token import GetWebsocketsTokenResult
 from reactivex import operators
-from reactivex.operators import publish, flat_map, do_action, ref_count, share
+from reactivex.operators import publish, share, take
 from reactivex.scheduler import ThreadPoolScheduler
 from rich.logging import RichHandler
-from websocket import WebSocketApp
 
 from bittrade_kraken_websocket.channels import CHANNEL_OPEN_ORDERS
 from bittrade_kraken_websocket.connection import private_websocket_connection, retry_with_backoff
 from bittrade_kraken_rest.endpoints.private.get_websockets_token import get_websockets_token
-from bittrade_kraken_rest.models.request import RequestWithResponse
 from pathlib import Path
-from os import getenv
 import urllib, hmac, base64, hashlib
 
-from bittrade_kraken_websocket.connection.generic import WebsocketBundle
-from bittrade_kraken_websocket.connection.private import AuthenticatedWebsocket
-from bittrade_kraken_websocket.connection.status import WEBSOCKET_CLOSED, Status, WEBSOCKET_OPENED
-from bittrade_kraken_websocket.development import debug_observer
-from bittrade_kraken_websocket.events._subscribe_private import subscribe_private
-from bittrade_kraken_websocket.messages.heartbeat import ignore_heartbeat
-from bittrade_kraken_websocket.messages.listen import keep_messages_only
-from bittrade_kraken_websocket.messages.relevant import relevant, relevant_multicast
+from bittrade_kraken_websocket.connection.connection_operators import authenticated_socket
+from bittrade_kraken_websocket.development import debug_observer, info_observer
+from bittrade_kraken_websocket.events.subscribe import subscribe_to_channel
+from bittrade_kraken_websocket.messages.listen import keep_messages_only, keep_status_only
 
 console = RichHandler()
 console.setLevel(logging.DEBUG)
@@ -35,9 +27,8 @@ logger.setLevel(logging.DEBUG)
 logger.addHandler(console)
 
 
-
 ##### Don't use a library for this for security reasons; at most copy-paste this to your own code ####
-# Taken (with a minor change on non_null_data) from https://docs.kraken.com/rest/#section/Authentication/Headers-and-Signature
+# Code taken (with a minor change on non_null_data) from https://docs.kraken.com/rest/#section/Authentication/Headers-and-Signature
 def generate_kraken_signature(urlpath, data, secret):
     non_null_data = {k: v for k, v in data.items() if v is not None}
     post_data = urllib.parse.urlencode(non_null_data)
@@ -48,55 +39,45 @@ def generate_kraken_signature(urlpath, data, secret):
     return signature_digest.decode()
 
 
-def sign(request):
-    request.headers['API-Key'] = Path('./config_local/key').read_text()
-    request.headers['API-Sign'] = generate_kraken_signature(request.url, request.data, Path('./config_local/secret').read_text())
-##### Write your own for security reasons ####
-
-def enhance_websocket(message: WebsocketBundle) -> Tuple[AuthenticatedWebsocket, Status]:
-    ws, status = message
-    if status == WEBSOCKET_CLOSED:
-        return (None, WEBSOCKET_CLOSED)
-    prep: RequestWithResponse
+def get_token():
     with get_websockets_token() as prep:
-        sign(prep)
-    result: GetWebsocketsTokenResult = prep.response.get_result()
-    logger.debug('Received token %s', result)
-    return (AuthenticatedWebsocket(ws, result.token), WEBSOCKET_OPENED,)
+        prep.headers['API-Key'] = Path(
+            './config_local/key').read_text()  # this reads key and secret from a gitignored folder at the root level; you could use env variables or other methods of loading your credentials
+        prep.headers['API-Sign'] = generate_kraken_signature(prep.url, prep.data,
+                                                             Path('./config_local/secret').read_text())
+    return prep.response.get_result().token
 
 
-def authenticate():
-    return operators.map(
-        enhance_websocket
-    )
+##### END Write your own for security reasons ####
 
-connection = private_websocket_connection().pipe(
+# Transform the above function into an observable
+token_generator = reactivex.from_callable(get_token)
+
+connection = private_websocket_connection(token_generator, json_messages=True).pipe(
     publish()
 )
-connection.subscribe_to_channel(debug_observer('Socket'))
+connection.pipe(
+    keep_status_only()
+).subscribe(debug_observer('Socket status'))
 all_messages = connection.pipe(
-    get_messages(),
+    keep_messages_only(),
     share()
 )
-authenticated = connection.pipe(
-    authenticate(),
-    subscribe_private(all_messages, CHANNEL_OPEN_ORDERS),
-    share()
+open_orders = connection.pipe(
+    authenticated_socket(),
+    subscribe_to_channel(all_messages, CHANNEL_OPEN_ORDERS)
 )
+open_orders.subscribe(info_observer('Own trades'))
+
 pool_scheduler = ThreadPoolScheduler()
 
-connection.pipe(
-    ignore_heartbeat()
-).subscribe_to_channel(debug_observer('Messages'))
-authenticated.pipe(
-    relevant_multicast()
-).subscribe_to_channel(debug_observer('Authenticated'))
-
 sub = connection.connect(pool_scheduler)
+
 
 def stop():
     sub.dispose()
 
-reactivex.interval(300).subscribe(
+
+reactivex.interval(300).pipe(take(1)).subscribe(
     on_next=stop
 )

@@ -95,6 +95,20 @@ python-versions = "*"
 test = ["flake8 (==3.7.8)", "hypothesis (==3.55.3)"]
 
 [[package]]
+name = "coverage"
+version = "7.0.0"
+description = "Code coverage measurement for Python"
+category = "dev"
+optional = false
+python-versions = ">=3.7"
+
+[package.dependencies]
+tomli = {version = "*", optional = true, markers = "python_full_version <= \"3.11.0a6\" and extra == \"toml\""}
+
+[package.extras]
+toml = ["tomli"]
+
+[[package]]
 name = "decorator"
 version = "5.1.1"
 description = "Decorators for Humans"
@@ -322,6 +336,21 @@ tomli = {version = ">=1.0.0", markers = "python_version < \"3.11\""}
 testing = ["argcomplete", "hypothesis (>=3.56)", "mock", "nose", "pygments (>=2.7.2)", "requests", "xmlschema"]
 
 [[package]]
+name = "pytest-cov"
+version = "4.0.0"
+description = "Pytest plugin for measuring coverage."
+category = "dev"
+optional = false
+python-versions = ">=3.6"
+
+[package.dependencies]
+coverage = {version = ">=5.2.1", extras = ["toml"]}
+pytest = ">=4.6"
+
+[package.extras]
+testing = ["fields", "hunter", "process-tests", "six", "pytest-xdist", "virtualenv"]
+
+[[package]]
 name = "reactivex"
 version = "4.0.4"
 description = "ReactiveX (Rx) for Python"
@@ -456,7 +485,7 @@ test = ["websockets"]
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.10"
-content-hash = "32e241f9edd09946de774701751e6bf3558f8172bbca2e7a1296417140810d0b"
+content-hash = "e3d7308aedce90eacace6fce8b62df39a4baabfbffc305d434d2c963c707356b"
 
 [metadata.files]
 appnope = []
@@ -468,6 +497,7 @@ certifi = []
 charset-normalizer = []
 colorama = []
 commonmark = []
+coverage = []
 decorator = []
 exceptiongroup = []
 executing = []
@@ -487,6 +517,7 @@ ptyprocess = []
 pure-eval = []
 pygments = []
 pytest = []
+pytest-cov = []
 reactivex = []
 requests = []
 rich = []

@@ -4,6 +4,7 @@ from typing import Callable, Dict, List, Optional
 
 import reactivex
 from reactivex import Observable, operators, Observer
+from reactivex.operators import do_action
 
 from bittrade_kraken_websocket.events.events import EventType, EVENT_SUBSCRIBE
 
@@ -18,36 +19,39 @@ def request_response(sender: Observer[Dict], messages: Observable[Dict | List], 
                      event_type: Optional[EventType] = None, raise_on_status: bool = False) -> EventCaller:
     def trigger_event(value: Dict, reqid: int = 0):
         message_id = reqid or int(1e6 * time.time())
+        """Subscription to channels such as ticker are a bit special so prepare to handle them"""
         is_subscription_request = event_type == EVENT_SUBSCRIBE
 
         status_event_type = ''
         if event_type:
+            """Name of response 'event' value is <your event e.g.addOrder>Status unless it's a subscription then it's subscriptionStatus"""
             status_event_type = f'{"subscription" if is_subscription_request else event_type}Status'
 
+        """
+        Single requests like addOrder will only send one item back.
+        Channels subscription can on the other hand have multiple "pairs" and they then get acknowledged one at a time
+        Also single requests have status: ok/error, channel subscriptions receive "subscribed" 
+        """
         taker = operators.take(1)
         good_status = "ok"
         bad_status = "error"
+        pending_pairs = []
         if is_subscription_request:
-            sub_channels = list(value['pair'])
-            taker = operators.take_while(lambda _x: len(sub_channels) > 0, inclusive=True)
+            pending_pairs = list(value.get('pair', []))
+            taker = operators.take_while(lambda _x: len(pending_pairs) > 0, inclusive=True)
             good_status = "subscribed"
 
-        def correct_id(message: Dict | List):
-            try:
-                if status_event_type and message['event'] != status_event_type:
-                    return False
-                if is_subscription_request:
-                    sub = message['subscription']
-                    return sub['name'] == value['subscription']['name'] and message['pair'] in sub_channels
-                return message['reqid'] == message_id
-            except:  # anything goes wrong, just pass
-                return False
+        def keep_correct_id(message: Dict | List):
+            return is_correct_id(
+                message, status_event_type, is_subscription_request, value, message_id, pending_pairs
+            )
 
         def subscribe(observer: Observer, scheduler=None):
-            filter_operators = [operators.filter(correct_id),]
+            filter_operators = [operators.filter(keep_correct_id), ]
             if is_subscription_request:
+                """This allows to wait for all pairs. pending_pairs basically contains pairs that have not yet received their 'subscribe' event"""
                 filter_operators.append(
-                    operators.do_action(on_next=lambda x: sub_channels.remove(x['pair']))
+                    operators.do_action(on_next=lambda x: pending_pairs.remove(x['pair']))
                 )
 
             merged = reactivex.merge(
@@ -58,7 +62,8 @@ def request_response(sender: Observer[Dict], messages: Observable[Dict | List], 
                     operators.flat_map(reactivex.throw(TimeoutError())),
                 )
             ).pipe(
-                taker
+                taker,
+                do_action(on_completed=lambda: logger.info('Received response to request: %s id %s', value, reqid))
             )
             if raise_on_status:
                 merged = merged.pipe(
@@ -106,3 +111,20 @@ or {
 
 def response_ok(good_status="ok", bad_status="error"):
     return operators.map(lambda response: _response_ok(response, good_status, bad_status))
+
+
+def is_correct_id(message: Dict | List, status_event_type: str, is_subscription_request: bool, value: Dict,
+                  message_id: int, pending_pairs: List[str] = None):
+    pending_pairs = pending_pairs or []
+    try:
+        if status_event_type and message['event'] != status_event_type:
+            return False
+        if is_subscription_request:
+            sub = message['subscription']
+            if sub['name'] != value['subscription']['name']:
+                return False
+            if 'pair' in message:
+                return message['pair'] in pending_pairs
+        return message['reqid'] == message_id
+    except:  # anything goes wrong, just pass
+        return False

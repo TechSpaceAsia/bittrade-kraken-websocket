@@ -3,10 +3,14 @@ from typing import List, Dict, Callable
 import orjson
 from reactivex import operators, Observable, compose
 
-from bittrade_kraken_websocket.connection.generic import WebsocketBundle, WEBSOCKET_MESSAGE
+from bittrade_kraken_websocket.connection.connection_operators import filter_socket_status_only
+from bittrade_kraken_websocket.connection.generic import WebsocketBundle, WEBSOCKET_MESSAGE, WEBSOCKET_STATUS
+from bittrade_kraken_websocket.connection.status import Status
+
 
 def _is_message(message: WebsocketBundle):
     return message[1] == WEBSOCKET_MESSAGE
+
 
 def _message_only(json_messages: bool):
     def fn(message: WebsocketBundle):
@@ -17,8 +21,16 @@ def _message_only(json_messages: bool):
 
     return fn
 
+
 def keep_messages_only(json_messages=False) -> Callable[[Observable[WebsocketBundle]], Observable[str | Dict | List]]:
     return compose(
         operators.filter(_is_message),
         operators.map(_message_only(json_messages)),
+    )
+
+
+def keep_status_only() -> Callable[[Observable], Observable[Status]]:
+    return compose(
+        filter_socket_status_only(),
+        operators.map(_message_only(False))
     )

@@ -1,19 +1,25 @@
+from logging import getLogger
 from typing import Dict
 
 from reactivex import Observable, Observer
 from reactivex.operators import take
 
 from bittrade_kraken_websocket.connection.generic import websocket_connection, WebsocketBundle, WEBSOCKET_STATUS
-from bittrade_kraken_websocket.connection.status import WEBSOCKET_AUTHENTICATED
+from bittrade_kraken_websocket.connection.status import WEBSOCKET_AUTHENTICATED, WEBSOCKET_OPENED
 
+logger = getLogger(__name__)
 
 def add_token(token_generator: Observable[str]):
     def _add_token(source: Observable[WebsocketBundle]) -> Observable[WebsocketBundle]:
 
         def subscribe(observer: Observer, scheduler=None):
             def on_next(bundle: WebsocketBundle):
-                connection, *_ = bundle
+                connection, category, message = bundle
+                if not (category == WEBSOCKET_STATUS and message == WEBSOCKET_OPENED):
+                    # Pass through
+                    return observer.on_next(bundle)
                 try:
+                    logger.info('Private socket opened, attempting to get token')
                     token = token_generator.pipe(take(1)).run()
                     connection.token = token
                     observer.on_next([connection, WEBSOCKET_STATUS, WEBSOCKET_AUTHENTICATED])

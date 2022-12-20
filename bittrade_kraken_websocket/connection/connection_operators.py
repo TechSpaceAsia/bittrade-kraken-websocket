@@ -3,7 +3,7 @@ from typing import Callable
 from reactivex import compose, operators, Observable
 
 from bittrade_kraken_websocket.connection.generic import WebsocketBundle, EnhancedWebsocket, WEBSOCKET_STATUS
-from bittrade_kraken_websocket.connection.status import WEBSOCKET_OPENED
+from bittrade_kraken_websocket.connection.status import WEBSOCKET_OPENED, WEBSOCKET_AUTHENTICATED
 
 
 def filter_socket_status_only() -> Callable[[Observable[WebsocketBundle]], Observable[WebsocketBundle]]:
@@ -25,3 +25,15 @@ def connected_socket() -> Callable[[Observable[WebsocketBundle]], Observable[Enh
         operators.filter(lambda x: x[2] == WEBSOCKET_OPENED),
         map_socket_only()
     )
+
+
+def authenticated_socket() -> Callable[[Observable[WebsocketBundle]], Observable[EnhancedWebsocket]]:
+    """
+    Observable emits authenticated sockets only - useful for private subscriptions
+    """
+    return compose(
+        filter_socket_status_only(),
+        operators.filter(lambda x: x[2] == WEBSOCKET_AUTHENTICATED),
+        map_socket_only()
+    )
+

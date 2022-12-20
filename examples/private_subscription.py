@@ -7,13 +7,14 @@ from reactivex.operators import publish, share, take
 from reactivex.scheduler import ThreadPoolScheduler
 from rich.logging import RichHandler
 
-from bittrade_kraken_websocket.channels import CHANNEL_OPEN_ORDERS
+from bittrade_kraken_websocket.channels import CHANNEL_OPEN_ORDERS, CHANNEL_OWN_TRADES
 from bittrade_kraken_websocket.connection import private_websocket_connection, retry_with_backoff
 from bittrade_kraken_rest.endpoints.private.get_websockets_token import get_websockets_token
 from pathlib import Path
 import urllib, hmac, base64, hashlib
 
-from bittrade_kraken_websocket.connection.connection_operators import authenticated_socket
+from bittrade_kraken_websocket.connection.connection_operators import authenticated_socket, ready_socket, \
+    map_socket_only
 from bittrade_kraken_websocket.development import debug_observer, info_observer
 from bittrade_kraken_websocket.events.subscribe import subscribe_to_channel
 from bittrade_kraken_websocket.messages.listen import keep_messages_only, keep_status_only
@@ -53,7 +54,7 @@ def get_token():
 # Transform the above function into an observable
 token_generator = reactivex.from_callable(get_token)
 
-connection = private_websocket_connection(token_generator, json_messages=True).pipe(
+connection = private_websocket_connection(token_generator).pipe(
     publish()
 )
 connection.pipe(
@@ -63,18 +64,28 @@ all_messages = connection.pipe(
     keep_messages_only(),
     share()
 )
-open_orders = connection.pipe(
-    authenticated_socket(),
+ready_sockets = connection.pipe(
+    ready_socket(),
+    operators.filter(lambda x: x[1]),  # only when set to "ready", not when going down
+    map_socket_only(),
+    share()
+)
+open_orders = ready_sockets.pipe(
     subscribe_to_channel(all_messages, CHANNEL_OPEN_ORDERS)
 )
-open_orders.subscribe(info_observer('Own trades'))
+open_orders.subscribe(info_observer('[OPEN ORDERS]'))
+
+own_trades = ready_sockets.pipe(
+    subscribe_to_channel(all_messages, CHANNEL_OWN_TRADES)
+)
+own_trades.subscribe(info_observer('[OPEN ORDERS]'))
 
 pool_scheduler = ThreadPoolScheduler()
 
 sub = connection.connect(pool_scheduler)
 
 
-def stop():
+def stop(*args):
     sub.dispose()
 
 

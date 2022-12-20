@@ -5,7 +5,8 @@ from reactivex import Observable, Observer
 from reactivex.operators import take
 
 from bittrade_kraken_websocket.connection.generic import websocket_connection, WebsocketBundle, WEBSOCKET_STATUS
-from bittrade_kraken_websocket.connection.status import WEBSOCKET_AUTHENTICATED, WEBSOCKET_OPENED
+from bittrade_kraken_websocket.connection.status import WEBSOCKET_AUTHENTICATED, WEBSOCKET_OPENED, \
+    WEBSOCKET_SYSTEM_ONLINE
 
 logger = getLogger(__name__)
 
@@ -14,17 +15,21 @@ def add_token(token_generator: Observable[str]):
 
         def subscribe(observer: Observer, scheduler=None):
             def on_next(bundle: WebsocketBundle):
-                connection, category, message = bundle
-                if not (category == WEBSOCKET_STATUS and message == WEBSOCKET_OPENED):
+                connection = bundle[0]
+                observer.on_next(bundle) # keep the emission regardless
+                if connection.token:
                     # Pass through
-                    return observer.on_next(bundle)
+                    return
                 try:
                     logger.info('Private socket opened, attempting to get token')
-                    token = token_generator.pipe(take(1)).run()
+                    token = token_generator.run()
+                    logger.info('Token obtained: %s...', token[:10])
                     connection.token = token
-                    observer.on_next([connection, WEBSOCKET_STATUS, WEBSOCKET_AUTHENTICATED])
                 except Exception as exc:
+                    logger.error('Failed to load token %s', exc)
                     observer.on_error(exc)
+                    return
+                observer.on_next([connection, WEBSOCKET_STATUS, WEBSOCKET_AUTHENTICATED])
             return source.subscribe(
                 on_next=on_next,
                 on_completed=observer.on_completed, on_error=observer.on_error, scheduler=scheduler
@@ -33,10 +38,9 @@ def add_token(token_generator: Observable[str]):
     return _add_token
 
 
-def private_websocket_connection(token_generator: Observable[str], json_messages=False):
-    """Token generator is an observable which is expected to emit a single item upon subscription. An implementation can be seen in `examples/private_subscription.py`"""
+def private_websocket_connection(token_generator: Observable[str]):
+    """Token generator is an observable which is expected to emit a single item upon subscription then complete.
+    An implementation can be seen in `examples/private_subscription.py`"""
     return websocket_connection(
-        'wss://ws-auth.kraken.com', json_messages=json_messages
-    ).pipe(
-        add_token(token_generator)
+        token_generator
     )

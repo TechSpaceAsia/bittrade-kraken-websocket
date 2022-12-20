@@ -16,7 +16,7 @@ from rich import print as pretty_print
 from rich.logging import RichHandler
 from concurrent.futures import ThreadPoolExecutor
 
-from bittrade_kraken_websocket.connection.connection_operators import connected_socket
+from bittrade_kraken_websocket.connection.connection_operators import ready_socket
 from bittrade_kraken_websocket.development import debug_observer, info_observer
 from bittrade_kraken_websocket.events.subscribe import subscribe_to_channel
 from bittrade_kraken_websocket.messages.listen import keep_messages_only
@@ -28,9 +28,7 @@ logger = logging.getLogger(
 )
 logger.setLevel(logging.DEBUG)
 logger.addHandler(console)
-socket_connection = public_websocket_connection(
-    json_messages=True
-).pipe(
+socket_connection = public_websocket_connection().pipe(
     publish()
 )
 messages = socket_connection.pipe(
@@ -39,18 +37,19 @@ messages = socket_connection.pipe(
 )
 messages.subscribe(debug_observer('ALL MESSAGES'))
 # Subscribe to multiple channels only when socket connects
-connected = socket_connection.pipe(
-    connected_socket(),
+ready = socket_connection.pipe(
+    ready_socket(),
+    operators.map(lambda x: x[0])
 )
 # subscribe_to_channel gives an observable with only the messages from that channel
-connected.pipe(
+ready.pipe(
     subscribe_to_channel(messages, channel=CHANNEL_TICKER, pair='USDT/USD')
 ).subscribe(
     info_observer('TICKER USDT')
 )
 
 # Disposing of the subscription to channel triggers sending the "unsubscribe" socket message. If needed you can get around that using share() or publish()
-to_be_disposed = connected.pipe(
+to_be_disposed = ready.pipe(
     subscribe_to_channel(messages, channel=CHANNEL_SPREAD, pair='XRP/USD')
 ).subscribe(
     info_observer('SPREAD XRP')

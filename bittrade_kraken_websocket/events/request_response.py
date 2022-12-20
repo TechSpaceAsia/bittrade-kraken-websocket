@@ -48,7 +48,7 @@ def request_response(sender: Observer[Dict], messages: Observable[Dict | List], 
 
         def subscribe(observer: Observer, scheduler=None):
             filter_operators = [operators.filter(keep_correct_id), ]
-            if is_subscription_request:
+            if is_subscription_request and pending_pairs:
                 """This allows to wait for all pairs. pending_pairs basically contains pairs that have not yet received their 'subscribe' event"""
                 filter_operators.append(
                     operators.do_action(on_next=lambda x: pending_pairs.remove(x['pair']))
@@ -63,7 +63,7 @@ def request_response(sender: Observer[Dict], messages: Observable[Dict | List], 
                 )
             ).pipe(
                 taker,
-                do_action(on_completed=lambda: logger.info('Received response to request: %s id %s', value, reqid))
+                do_action(on_completed=lambda: logger.info('Received response to request: %s id %s', value, message_id)),
             )
             if raise_on_status:
                 merged = merged.pipe(

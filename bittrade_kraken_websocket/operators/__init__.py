@@ -1,1 +1,0 @@
-from ._share import share

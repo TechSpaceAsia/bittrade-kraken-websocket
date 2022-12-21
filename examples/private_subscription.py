@@ -1,10 +1,11 @@
 import logging
+import signal
 from os import getenv
 
 import reactivex
 from reactivex import operators
 from reactivex.operators import publish, share, take
-from reactivex.scheduler import ThreadPoolScheduler
+from reactivex.scheduler import ThreadPoolScheduler, TimeoutScheduler
 from rich.logging import RichHandler
 
 from bittrade_kraken_websocket.channels import CHANNEL_OPEN_ORDERS, CHANNEL_OWN_TRADES
@@ -15,9 +16,10 @@ import urllib, hmac, base64, hashlib
 
 from bittrade_kraken_websocket.connection.connection_operators import authenticated_socket, ready_socket, \
     map_socket_only
+from bittrade_kraken_websocket.connection.enhanced_websocket import EnhancedWebsocket
 from bittrade_kraken_websocket.development import debug_observer, info_observer
-from bittrade_kraken_websocket.events.subscribe import subscribe_to_channel
-from bittrade_kraken_websocket.messages.listen import keep_messages_only, keep_status_only
+from bittrade_kraken_websocket.events.subscribe import subscribe_to_channel, subscribe_to_channel_v2
+from bittrade_kraken_websocket.messages.listen import keep_messages_only, keep_status_only, filter_new_socket_only
 
 console = RichHandler()
 console.setLevel(logging.DEBUG)
@@ -27,6 +29,7 @@ logger = logging.getLogger(
 logger.setLevel(logging.DEBUG)
 logger.addHandler(console)
 
+timeout_scheduler = TimeoutScheduler()
 
 ##### Don't use a library for this for security reasons; at most copy-paste this to your own code ####
 # Code taken (with a minor change on non_null_data) from https://docs.kraken.com/rest/#section/Authentication/Headers-and-Signature
@@ -55,6 +58,7 @@ def get_token():
 token_generator = reactivex.from_callable(get_token)
 
 connection = private_websocket_connection(token_generator).pipe(
+    retry_with_backoff(),
     publish()
 )
 connection.pipe(
@@ -64,31 +68,69 @@ all_messages = connection.pipe(
     keep_messages_only(),
     share()
 )
-ready_sockets = connection.pipe(
-    ready_socket(),
-    operators.filter(lambda x: x[1]),  # only when set to "ready", not when going down
-    map_socket_only(),
+new_sockets = connection.pipe(
+    filter_new_socket_only(),
     share()
 )
-open_orders = ready_sockets.pipe(
-    subscribe_to_channel(all_messages, CHANNEL_OPEN_ORDERS)
-)
-open_orders.subscribe(debug_observer('[OPEN ORDERS]'))
 
-own_trades = ready_sockets.pipe(
-    subscribe_to_channel(all_messages, CHANNEL_OWN_TRADES)
+# Uncomment this to see the socket reconnect in action (probably no backoff since kraken isn't actually disconnecting), followed by the resubscription to the channels
+# def force_close(socket: EnhancedWebsocket):
+#     def close_me(*args):
+#         socket.socket.close(status=1008)
+#     timeout_scheduler.schedule_relative(10, close_me)
+# connection.pipe(
+#     map_socket_only(),
+#     operators.do_action(on_next=force_close)
+# ).subscribe()
+
+# Uncomment this, and comment the open_orders below to see a fake sequence problem in subscription and the subsequent unsub/sub; you'll also need to place an order which should result in a sequence 3 at least - or you can change the code below to == 1
+def mess_up_sequence(x):
+    try:
+        if x[2]['sequence'] == 3:
+            x[2]['sequence'] = 5
+    except:
+        pass
+    return x
+
+open_orders = new_sockets.pipe(
+    subscribe_to_channel_v2(
+        all_messages.pipe(
+            operators.map(mess_up_sequence)
+        )
+    , CHANNEL_OPEN_ORDERS)
 )
-own_trades.subscribe(debug_observer('[OPEN ORDERS]'))
+open_orders.subscribe(info_observer('[MESSED UP ORDERS]'))
+
+
+# open_orders = new_sockets.pipe(
+#     subscribe_to_channel_v2(all_messages, CHANNEL_OPEN_ORDERS)
+# )
+# open_orders.subscribe(info_observer('[OPEN ORDERS]'))
+
+# Uncomment this to see additional socket connection in action
+# own_trades = new_sockets.pipe(
+#     subscribe_to_channel(all_messages, CHANNEL_OWN_TRADES)
+# )
+# own_trades.subscribe(debug_observer('[OPEN ORDERS]'))
 
 pool_scheduler = ThreadPoolScheduler()
 
 sub = connection.connect(pool_scheduler)
 
-
+ongoing = True
 def stop(*args):
+    global ongoing
+    ongoing = False
     sub.dispose()
 
+signal.signal(
+    signal.SIGINT, stop
+)
 
-reactivex.interval(60).pipe(take(1)).subscribe(
+# Uncomment this to stop the socket after 1 minute
+reactivex.interval(600).pipe(take(1)).subscribe(
     on_next=stop
 )
+
+while ongoing:
+    pass

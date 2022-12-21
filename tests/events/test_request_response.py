@@ -1,18 +1,71 @@
 from typing import Dict
+from unittest.mock import MagicMock
 
 import pytest
 import reactivex
+from reactivex import operators
 from reactivex.testing import ReactiveTest, TestScheduler
 from reactivex.testing.subscription import Subscription
 
 from bittrade_kraken_websocket.events.request_response import request_response, _response_ok, RequestResponseError, \
     wait_for_response, build_matcher
+from bittrade_kraken_websocket.events.subscribe import request_response_factory
 from tests.helpers.from_sample import from_sample
 
 on_next = ReactiveTest.on_next
 on_error = ReactiveTest.on_error
 on_completed = ReactiveTest.on_completed
 subscribe = ReactiveTest.subscribe
+
+
+
+def test_subscribe_v2():
+    scheduler = TestScheduler()
+    inner_obs = scheduler.create_cold_observable(
+        on_next(10, 'abc'),
+        on_next(40, 'd'),
+    )
+    inner_obs2 = scheduler.create_cold_observable(
+        on_next(30, 'AAA'),
+        on_next(300, 42),
+    )
+    messages = scheduler.create_hot_observable(
+        on_next(300, inner_obs),
+        on_next(400, inner_obs2),
+        on_next(500, inner_obs)
+    )
+    result = scheduler.start(
+        lambda: messages.pipe(
+            operators.switch_latest()
+        )
+    )
+    assert result.messages == [
+        on_next(310, 'abc'),
+        on_next(340, 'd'),
+        on_next(430, 'AAA'),
+        on_next(510, 'abc'),
+        on_next(540, 'd'),
+    ]
+    assert inner_obs.subscriptions == [Subscription(300, 400), Subscription(500, 1000)]
+    assert inner_obs2.subscriptions == [Subscription(400, 500)]
+
+def test_request_response_factory_timeout_using_next():
+    scheduler = TestScheduler()
+    messages = scheduler.create_hot_observable(
+        on_next(300, {"event": "addOrderStatus", "reqid": 9}),
+        on_next(400, {"event": "statusNotMatter", "reqid": 100}),
+        on_next(600, {"event": "statusNotMatter", "reqid": 300}), # 600 > 200+300 - too late
+    )
+    timeout = scheduler.create_cold_observable(on_next(300, None))
+    on_enter = MagicMock()
+    result = scheduler.start(lambda: request_response_factory(on_enter=on_enter, message_id=300, messages=messages, timeout=timeout))
+    assert result.messages == [on_error(500, TimeoutError())]
+
+    assert messages.subscriptions == [Subscription(200, 500)]
+    assert timeout.subscriptions == [Subscription(200, 500)]
+
+    on_enter.assert_called_once_with()
+
 
 
 def test_request_response_timeout_using_next():

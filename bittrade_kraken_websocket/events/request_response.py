@@ -15,7 +15,9 @@ logger = getLogger(__name__)
 
 EventCaller = Callable[[Dict, int], Observable]
 
-def wait_for_response(is_match: Callable, timeout: Observable):
+def wait_for_response(is_match: Callable | int, timeout: Observable):
+    if type(is_match) == int:
+        is_match = build_matcher(is_match)
     return compose(
         operators.merge(
             timeout.pipe(
@@ -23,7 +25,8 @@ def wait_for_response(is_match: Callable, timeout: Observable):
             )
         ),
         operators.filter(is_match),
-        operators.take(1)
+        operators.do_action(on_next=lambda x: logger.debug('[SOCKET] Received matching message')),
+        operators.take(1),
     )
 
 
@@ -90,20 +93,3 @@ or {
 
 def response_ok(good_status="ok", bad_status="error"):
     return operators.map(lambda response: _response_ok(response, good_status, bad_status))
-
-
-def is_correct_id(message: Dict | List, status_event_type: str, is_subscription_request: bool, value: Dict,
-                  message_id: int, pending_pairs: List[str] = None):
-    pending_pairs = pending_pairs or []
-    try:
-        if status_event_type and message['event'] != status_event_type:
-            return False
-        if is_subscription_request:
-            sub = message['subscription']
-            if sub['name'] != value['subscription']['name']:
-                return False
-            if 'pair' in message:
-                return message['pair'] in pending_pairs
-        return message['reqid'] == message_id
-    except:  # anything goes wrong, just pass
-        return False

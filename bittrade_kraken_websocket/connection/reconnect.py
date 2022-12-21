@@ -76,7 +76,6 @@ def retry_with_backoff(stabilized: Observable = None, delays_pattern: Optional[G
                 current_stable_subscription[0] = CompositeDisposable(
                     stabilized.pipe(
                         take(1),
-                        do_action(on_completed=lambda: logger.info('[BACKOFF] Resetting delays'))
                     ).subscribe(on_completed=reset_delay),
                 )
                 yield source.pipe(
@@ -87,7 +86,7 @@ def retry_with_backoff(stabilized: Observable = None, delays_pattern: Optional[G
         delays = [delays_pattern()]
 
         def reset_delay(*args):
-            logger.info('[BACKOFF] Delays have been reset')
+            logger.info('[BACKOFF] Source stabilized; delays have been reset')
             try:
                 delays[0] = delays_pattern()
             except Exception as exc:

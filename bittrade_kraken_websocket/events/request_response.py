@@ -40,7 +40,7 @@ def request_response(sender: Observer[Dict], messages: Observable[Dict | List], 
             ).pipe(
                 do_action(
                     on_completed=lambda: logger.info('Received response to request: %s', request_message),
-                    on_error=lambda exc: logger.error('Failed to get response for request %s -> %s', request_message, exc)
+                    on_error=lambda exc: logger.error('Failed to get response for request %s -> %s', request_message, exc, exc_info=True)
                 ),
             )
 

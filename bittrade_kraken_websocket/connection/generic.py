@@ -6,8 +6,7 @@ from logging import getLogger
 import orjson
 import reactivex.disposable
 from reactivex import Observable, Observer
-import websocket
-from websocket import WebSocketConnectionClosedException, ABNF
+from websocket import WebSocketConnectionClosedException, WebSocketApp
 
 from bittrade_kraken_websocket.connection.enhanced_websocket import EnhancedWebsocket
 from bittrade_kraken_websocket.connection.status import WEBSOCKET_OPENED, WEBSOCKET_CLOSED, Status
@@ -29,21 +28,21 @@ def websocket_connection(token_generator: Optional[Observable[str]] = None) -> O
     url = f'wss://ws{"-auth" if is_private else ""}.kraken.com'
 
     def subscribe(observer: Observer, scheduler=None):
-        def on_error(ws, error):
+        def on_error(_ws, error):
             logger.error('[SOCKET] Websocket errored %s', error)
             observer.on_next((enhanced, WEBSOCKET_STATUS, WEBSOCKET_CLOSED))
             observer.on_error(error)
 
-        def on_close(ws, close_status_code, close_msg):
+        def on_close(_ws, close_status_code, close_msg):
             logger.warning('[SOCKET] Websocket closed | status: %s, close message: %s', close_status_code, close_msg)
             observer.on_next((enhanced, WEBSOCKET_STATUS, WEBSOCKET_CLOSED))
             observer.on_error(Exception('Socket closed'))
 
-        def on_open(ws):
+        def on_open(_ws):
             logger.info('[SOCKET] Websocket opened')
             observer.on_next((enhanced, WEBSOCKET_STATUS, WEBSOCKET_OPENED))
 
-        def on_message(ws, message):
+        def on_message(_ws, message):
             pass_message = orjson.loads(message)
             category = WEBSOCKET_MESSAGE
             if message == HEARTBEAT:
@@ -55,10 +54,10 @@ def websocket_connection(token_generator: Optional[Observable[str]] = None) -> O
                     pass_message = pass_message['status']
             observer.on_next((enhanced, category, pass_message))
 
-        connection = websocket.WebSocketApp(
+        connection = WebSocketApp(
             url, on_open=on_open, on_close=on_close, on_error=on_error, on_message=on_message
         )
-        enhanced = EnhancedWebsocket(connection, token_generator)
+        enhanced = EnhancedWebsocket(connection, token_generator=token_generator)
         executor = ThreadPoolExecutor(thread_name_prefix='WebsocketPool')
         executor.submit(connection.run_forever)
         executor.shutdown(wait=False)

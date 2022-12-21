@@ -1,18 +1,30 @@
+from logging import getLogger
 from typing import Callable, Dict, List
 
 import reactivex
 from reactivex import Observable, compose, operators
 
-from bittrade_kraken_websocket.development import debug_observer
+from bittrade_kraken_websocket.development import debug_observer, wrap_operator
+
+logger = getLogger(__name__)
 
 
 class InvalidSequence(ValueError):
     pass
+
+
 def correct_sequence_or_throw(x):
     previous, current = x
-    if current[2]['sequence'] == previous[2]['sequence'] + 1:
+    expected = previous[2]['sequence'] + 1
+    actual = current[2]['sequence']
+    if expected == 1:  # means sequence was 0, meaning it's the first message
+        logger.info('[SOCKET][SEQUENCE] Fresh start of sequence; starting from %s', actual)
         return current
+    if actual == expected:
+        return current
+    logger.warning('[SOCKET][SEQUENCE] Invalid sequence; expected %s, got %s', expected, actual)
     raise InvalidSequence()
+
 
 def in_sequence() -> Callable[[Observable[List]], Observable[List]]:
     return compose(
@@ -26,6 +38,7 @@ def repeat_on_invalid_sequence(do_this_first: Observable):
     """Retry on InvalidSequence error only
     This will allow to refresh the subscription
     """
+
     def on_error(exc, source):
         if type(exc) == InvalidSequence:
             return do_this_first
@@ -33,5 +46,5 @@ def repeat_on_invalid_sequence(do_this_first: Observable):
 
     return compose(
         operators.catch(on_error),
-        operators.repeat()
+        operators.repeat(),
     )

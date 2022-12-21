@@ -18,7 +18,7 @@ from bittrade_kraken_websocket.connection.connection_operators import authentica
     map_socket_only
 from bittrade_kraken_websocket.connection.enhanced_websocket import EnhancedWebsocket
 from bittrade_kraken_websocket.development import debug_observer, info_observer
-from bittrade_kraken_websocket.events.subscribe import subscribe_to_channel, subscribe_to_channel_v2
+from bittrade_kraken_websocket.events.subscribe import subscribe_to_private_channel
 from bittrade_kraken_websocket.messages.listen import keep_messages_only, keep_status_only, filter_new_socket_only
 
 console = RichHandler()
@@ -93,7 +93,7 @@ def mess_up_sequence(x):
     return x
 
 open_orders = new_sockets.pipe(
-    subscribe_to_channel_v2(
+    subscribe_to_private_channel(
         all_messages.pipe(
             operators.map(mess_up_sequence)
         )
@@ -103,15 +103,15 @@ open_orders.subscribe(info_observer('[MESSED UP ORDERS]'))
 
 
 # open_orders = new_sockets.pipe(
-#     subscribe_to_channel_v2(all_messages, CHANNEL_OPEN_ORDERS)
+#     subscribe_to_private_channel(all_messages, CHANNEL_OPEN_ORDERS)
 # )
 # open_orders.subscribe(info_observer('[OPEN ORDERS]'))
 
 # Uncomment this to see additional socket connection in action
 # own_trades = new_sockets.pipe(
-#     subscribe_to_channel(all_messages, CHANNEL_OWN_TRADES)
+#     subscribe_to_private_channel(all_messages, CHANNEL_OWN_TRADES)
 # )
-# own_trades.subscribe(debug_observer('[OPEN ORDERS]'))
+# own_trades.subscribe(debug_observer('[OWN TRADES]'))
 
 pool_scheduler = ThreadPoolScheduler()
 

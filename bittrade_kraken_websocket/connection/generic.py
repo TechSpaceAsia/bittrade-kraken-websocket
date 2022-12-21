@@ -29,17 +29,17 @@ def websocket_connection(token_generator: Optional[Observable[str]] = None) -> O
 
     def subscribe(observer: Observer, scheduler=None):
         def on_error(_ws, error):
-            logger.error('[SOCKET] Websocket errored %s', error)
+            logger.error('[SOCKET][RAW] Websocket errored %s', error)
             observer.on_next((enhanced, WEBSOCKET_STATUS, WEBSOCKET_CLOSED))
             observer.on_error(error)
 
         def on_close(_ws, close_status_code, close_msg):
-            logger.warning('[SOCKET] Websocket closed | status: %s, close message: %s', close_status_code, close_msg)
+            logger.warning('[SOCKET][RAW] Websocket closed | status: %s, close message: %s', close_status_code, close_msg)
             observer.on_next((enhanced, WEBSOCKET_STATUS, WEBSOCKET_CLOSED))
             observer.on_error(Exception('Socket closed'))
 
         def on_open(_ws):
-            logger.info('[SOCKET] Websocket opened')
+            logger.info('[SOCKET][RAW] Websocket opened')
             observer.on_next((enhanced, WEBSOCKET_STATUS, WEBSOCKET_OPENED))
 
         def on_message(_ws, message):
@@ -48,7 +48,7 @@ def websocket_connection(token_generator: Optional[Observable[str]] = None) -> O
             if message == HEARTBEAT:
                 category = WEBSOCKET_HEARTBEAT
             else:
-                logger.debug('[SOCKET] %s', message)
+                logger.debug('[SOCKET][RAW] %s', message)
                 if type(pass_message) == dict and pass_message.get('event') == 'systemStatus':
                     category = WEBSOCKET_STATUS
                     pass_message = pass_message['status']

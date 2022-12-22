@@ -1,6 +1,8 @@
-from typing import Callable
+from typing import Callable, List
 
 from reactivex import Observer, operators
+from reactivex.abc import DisposableBase
+from reactivex.disposable import CompositeDisposable, Disposable
 from logging import getLogger
 from rich.console import Console
 import traceback
@@ -40,3 +42,8 @@ def info_observer(prefix: str):
 
 def info_operator(prefix: str):
     return operators.do(info_observer(prefix))
+
+
+class LogOnDisposeDisposable(CompositeDisposable):
+    def __init__(self, *args: List[DisposableBase], message: str = ''):
+        super().__init__(*args, Disposable(action=lambda: logger.info('DISPOSING %s', message)))

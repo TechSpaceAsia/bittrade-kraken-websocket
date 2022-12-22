@@ -1,27 +1,29 @@
 import functools
 import time
-from typing import Dict, List, Callable
+from typing import Dict, List, Callable, TypeVar, Optional
 from logging import getLogger
 
 import reactivex
 from reactivex import Observable, Observer, Subject, interval, operators, compose
 from reactivex.disposable import CompositeDisposable, SerialDisposable, SingleAssignmentDisposable, Disposable
 from reactivex.operators import take
+from reactivex.scheduler.scheduler import Scheduler
 
 from bittrade_kraken_websocket.channels import CHANNEL_OPEN_ORDERS, CHANNEL_OWN_TRADES
+from bittrade_kraken_websocket.channels.models.message import PublicMessage
 from bittrade_kraken_websocket.connection.generic import EnhancedWebsocket
 from bittrade_kraken_websocket.development import debug_observer
 from bittrade_kraken_websocket.events import ids
 from bittrade_kraken_websocket.events.events import EVENT_SUBSCRIBE, EVENT_UNSUBSCRIBE
 from bittrade_kraken_websocket.events.request_response import request_response, build_matcher, wait_for_response
 from bittrade_kraken_websocket.messages.filters.kind import keep_channel_messages
-from bittrade_kraken_websocket.messages.sequence import in_sequence, repeat_on_invalid_sequence
+from bittrade_kraken_websocket.messages.sequence import in_sequence, retry_on_invalid_sequence
 
 logger = getLogger(__name__)
 
 
 def subscribe_to_channel(messages: Observable[Dict | List], channel: str, pair: str = '', timeout=None):
-    timeout = timeout or interval(2.0)
+    timeout = timeout or reactivex.timer(2.0)
     request_message = {
         "event": EVENT_SUBSCRIBE,
         "subscription": {
@@ -49,7 +51,7 @@ def subscribe_to_channel(messages: Observable[Dict | List], channel: str, pair: 
                 d.disposable = messages.pipe(
                     keep_channel_messages(channel),
                     in_sequence(),
-                    repeat_on_invalid_sequence(
+                    retry_on_invalid_sequence(
                         reactivex.from_callable(lambda: connection.send_json(unsubscribe_request_message)))
                 ).subscribe(
                     observer
@@ -73,12 +75,7 @@ def subscribe_to_channel(messages: Observable[Dict | List], channel: str, pair: 
     return _subscribe_to_channel
 
 
-def subscribe_to_channel(messages: Observable[Dict | List], channel: str, *, pair: str = '',
-                         subscription_kwargs: Dict = None, id_generator=None,
-                         timeout=None):
-    """Note that at this level, messages needs to include all messages, not only dict (event stuff) or list (channel stuff) since we need both"""
-    timeout = timeout or reactivex.interval(5)
-    id_generator = id_generator or ids.id_generator
+def channel_subscription(socket: EnhancedWebsocket, channel: str, pair: str = '', subscription_kwargs: Dict = None):
     subscription_message = {
         "event": EVENT_SUBSCRIBE,
         "subscription": {
@@ -94,114 +91,45 @@ def subscribe_to_channel(messages: Observable[Dict | List], channel: str, *, pai
     if subscription_kwargs:
         subscription_message['subscription'].update(subscription_kwargs)
 
+    def on_enter():
+        socket.send_json(subscription_message)
+
+    def on_exit():
+        socket.send_json(unsubscription_message)
+
+    def _channel_subscription(source: Observable[List]):
+        def subscribe(observer: Observer, scheduler=None):
+            on_enter()
+            return CompositeDisposable(
+                source.subscribe(observer, scheduler=scheduler),
+                Disposable(action=on_exit)
+            )
+
+        return Observable(subscribe)
+
+    return _channel_subscription
+
+
+def subscribe_to_channel(messages: Observable[Dict | List], channel: str, *, pair: str = '',
+                         subscription_kwargs: Dict = None):
     is_private = channel in (CHANNEL_OWN_TRADES, CHANNEL_OPEN_ORDERS)
 
-    def socket_to_channel_messages(socket: EnhancedWebsocket):
-        def on_exit():
-            logger.debug('[SOCKET] Triggering on exit for subscription channel %s, pair: %s', channel, pair)
-            socket.send_json(
-                unsubscription_message
-            )
+    messages_operators = [in_sequence(), retry_on_invalid_sequence()] if is_private else []
 
-        do_this_on_invalid_sequence = reactivex.from_callable(on_exit).pipe(
-            operators.ignore_elements(),
-        )
-
-        def on_enter(x):
-            socket.send_json(dict(reqid=x, **subscription_message))
-
-        messages_operators = [
+    def socket_to_channel_messages(socket: EnhancedWebsocket) -> Observable[PublicMessage]:
+        return messages.pipe(
             keep_channel_messages(channel, pair),
-        ]
-        if is_private:
-            messages_operators.append(
-                in_sequence()
-            )
-
-        messages_pipe = messages.pipe(
+            channel_subscription(
+                socket, channel, pair, subscription_kwargs
+            ),
             *messages_operators
         )
 
-        socket_operators = [
-            operators.skip(1),
-            operators.concat(
-                messages_pipe
-            ),
-        ]
-        if is_private:
-            socket_operators.append(
-                repeat_on_invalid_sequence(
-                    do_this_on_invalid_sequence
-                ),
-            )
-
-        return request_response_factory(
-            on_enter=on_enter,
-            id_generator=id_generator,
-            timeout=timeout,
-            messages=messages
-        ).pipe(
-            *socket_operators
-        )
-
     return compose(
         operators.map(socket_to_channel_messages),
         operators.switch_latest(),
+        operators.share()
     )
-
-
-def subscribe_to_private_channel(messages: Observable[Dict | List], channel: str, id_generator=None,
-                                 timeout=None):
-    """Note that at this level, messages needs to include all messages, not only dict (event stuff) or list (channel stuff) since we need both"""
-    timeout = timeout or reactivex.interval(5)
-    id_generator = id_generator or ids.id_generator
-    subscription_message = {
-        "event": EVENT_SUBSCRIBE,
-        "subscription": {
-            "name": channel
-        }
-    }
-    unsubscription_message = dict(subscription_message)
-    unsubscription_message['event'] = EVENT_UNSUBSCRIBE
-
-    def socket_to_channel_messages(socket: EnhancedWebsocket):
-        def on_exit():
-            logger.debug('[SOCKET] Triggering on exit')
-            socket.send_json(
-                unsubscription_message
-            )
-
-        do_this_on_invalid_sequence = reactivex.from_callable(on_exit).pipe(
-            operators.ignore_elements(),
-        )
-
-        def on_enter(x):
-            socket.send_json(dict(reqid=x, **subscription_message))
-
-        return request_response_factory(
-            on_enter=on_enter,
-            id_generator=id_generator,
-            timeout=timeout,
-            messages=messages
-        ).pipe(
-            # Don't care about the response message here?
-            operators.skip(1),
-            operators.concat(
-                messages.pipe(
-                    keep_channel_messages(channel),
-                    in_sequence(),
-                )
-            ),
-            repeat_on_invalid_sequence(
-                do_this_on_invalid_sequence
-            ),
-        )
-
-    return compose(
-        operators.map(socket_to_channel_messages),
-        operators.switch_latest(),
-    )
-
 
 def request_response_factory(on_enter: Callable[[int], None], id_generator: Observable[int], messages: Observable[Dict],
                              timeout: Observable):

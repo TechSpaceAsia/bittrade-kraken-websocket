@@ -1,17 +1,21 @@
 from logging import getLogger
-from typing import Callable, Dict, List
+from typing import Callable, List, Tuple, TypeVar
+from bittrade_kraken_websocket.channels.models import PrivateMessage
 
 import reactivex
 from reactivex import Observable, compose, operators
 
+from bittrade_kraken_websocket.channels.models.message import PublicMessage
+
 logger = getLogger(__name__)
+
 
 
 class InvalidSequence(ValueError):
     pass
 
 
-def correct_sequence_or_throw(x):
+def correct_sequence_or_throw(x: Tuple[PrivateMessage, PrivateMessage]) -> PrivateMessage:
     previous, current = x
     expected = previous[2]['sequence'] + 1
     actual = current[2]['sequence']
@@ -24,22 +28,22 @@ def correct_sequence_or_throw(x):
     raise InvalidSequence()
 
 
-def in_sequence() -> Callable[[Observable[List]], Observable[List]]:
+def in_sequence() -> Callable[[Observable[PrivateMessage]], Observable[PrivateMessage]]:
     return compose(
-        operators.start_with(["", "", {"sequence": 0}]),
+        operators.start_with([[], "", {"sequence": 0}]),
         operators.pairwise(),
         operators.map(correct_sequence_or_throw),
     )
 
 
-def repeat_on_invalid_sequence(do_this_first: Observable):
+def retry_on_invalid_sequence() -> Callable[[Observable[PublicMessage]], Observable[PublicMessage]]:
     """Retry on InvalidSequence error only
     This will allow to refresh the subscription
     """
 
     def on_error(exc, source):
         if type(exc) == InvalidSequence:
-            return do_this_first
+            return reactivex.empty()
         return reactivex.throw(exc)
 
     return compose(

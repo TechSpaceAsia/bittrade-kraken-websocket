@@ -18,7 +18,7 @@ from bittrade_kraken_websocket.connection.connection_operators import authentica
     map_socket_only
 from bittrade_kraken_websocket.connection.enhanced_websocket import EnhancedWebsocket
 from bittrade_kraken_websocket.development import debug_observer, info_observer
-from bittrade_kraken_websocket.events.subscribe import subscribe_to_private_channel
+from bittrade_kraken_websocket.events.subscribe import subscribe_to_channel
 from bittrade_kraken_websocket.messages.listen import keep_messages_only, keep_status_only, filter_new_socket_only
 
 console = RichHandler()
@@ -86,10 +86,9 @@ new_sockets = connection.pipe(
 
 
 open_orders = new_sockets.pipe(
-    subscribe_to_private_channel(all_messages, CHANNEL_OPEN_ORDERS)
+    subscribe_to_channel(all_messages, CHANNEL_OPEN_ORDERS)
 )
 open_orders.subscribe(info_observer('[OPEN ORDERS]'))
-
 
 # Uncomment this, (and comment out the original open_orders above) to see a fake sequence problem in subscription and the subsequent unsub/sub; you'll also need to place an order which should result in a sequence 3 at least - or you can change the code below to == 1
 # def mess_up_sequence(x):

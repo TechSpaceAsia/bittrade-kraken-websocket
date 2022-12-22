@@ -41,7 +41,7 @@ def retry_with_backoff(stabilized: Observable = None, delays_pattern: Optional[G
     ```
     """
     if not stabilized:
-        stabilized = reactivex.interval(5.0)  # pragma: no cover
+        stabilized = reactivex.timer(5.0)  # pragma: no cover
     if not delays_pattern:
         def gen():
             yield 0.0
@@ -68,16 +68,13 @@ def retry_with_backoff(stabilized: Observable = None, delays_pattern: Optional[G
                 delay_by = next(delays[0])
                 current_stable_subscription[0].dispose()
                 logger.info('[BACKOFF] Back off delay is %s', delay_by)
-                yield reactivex.interval(delay_by).pipe(
-                    take(1),
+                yield reactivex.timer(delay_by).pipe(
                     ignore_elements()
                 )
                 if delay_by:
                     logger.info('[BACKOFF] Waited for back off; continuing')
                 current_stable_subscription[0] = CompositeDisposable(
-                    stabilized.pipe(
-                        take(1),
-                    ).subscribe(on_completed=reset_delay),
+                    stabilized.subscribe(on_completed=reset_delay),
                 )
                 yield source.pipe(
                     operators.do_action(on_completed=complete),

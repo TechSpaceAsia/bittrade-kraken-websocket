@@ -10,6 +10,7 @@ from bittrade_kraken_websocket.connection.status import WEBSOCKET_OPENED, WEBSOC
 def filter_socket_status_only() -> Callable[[Observable[WebsocketBundle]], Observable[WebsocketBundle]]:
     def is_status(x):
         return x[1] == WEBSOCKET_STATUS
+
     """Grab only messages related to the status of the websocket connection"""
     return operators.filter(is_status)
 
@@ -22,8 +23,12 @@ def map_socket_only() -> Callable[[Observable[WebsocketBundle]], Observable[Enha
 def connected_socket() -> Callable[[Observable[WebsocketBundle]], Observable[EnhancedWebsocket]]:
     return ready_socket([WEBSOCKET_OPENED])
 
+
 ReadyMessage = Tuple[EnhancedWebsocket, bool]
-def ready_socket(up_statuses: Optional[List[Status]]=None, down_statuses: Optional[List[Status]]=None) -> Callable[[Observable[WebsocketBundle]], Observable[ReadyMessage]]:
+
+
+def ready_socket(up_statuses: Optional[List[Status]] = None, down_statuses: Optional[List[Status]] = None) -> Callable[
+    [Observable[WebsocketBundle]], Observable[ReadyMessage]]:
     up_statuses = up_statuses or [WEBSOCKET_SYSTEM_ONLINE]
     down_statuses = down_statuses or [WEBSOCKET_CLOSED]
     """
@@ -46,4 +51,3 @@ def authenticated_socket() -> Callable[[Observable[WebsocketBundle]], Observable
         operators.filter(lambda x: x[2] == WEBSOCKET_AUTHENTICATED),
         map_socket_only()
     )
-

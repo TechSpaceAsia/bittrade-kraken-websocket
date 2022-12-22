@@ -1,28 +1,24 @@
-import sys
-import time
 import logging
-import orjson
-import signal
 
 import reactivex
-from reactivex import operators, Observable
-from reactivex.operators import publish, share, take, do_action, ignore_elements
+from reactivex.operators import share
 from reactivex.scheduler import TimeoutScheduler
-
-from bittrade_kraken_websocket.channels import CHANNEL_TICKER, CHANNEL_OHLC, CHANNEL_SPREAD
-from bittrade_kraken_websocket.connection.generic import EnhancedWebsocket
-from bittrade_kraken_websocket.connection.public import public_websocket_connection
-from rich import print as pretty_print
+from reactivex.disposable import CompositeDisposable, Disposable
 from rich.logging import RichHandler
-from concurrent.futures import ThreadPoolExecutor
 
-from bittrade_kraken_websocket.connection.connection_operators import ready_socket, map_socket_only
-from bittrade_kraken_websocket.development import debug_observer, info_observer
+from bittrade_kraken_websocket.channels import (CHANNEL_OHLC, CHANNEL_SPREAD,
+                                                CHANNEL_TICKER)
+from bittrade_kraken_websocket.operators import (
+    map_socket_only, filter_new_socket_only)
+from bittrade_kraken_websocket.connection.generic import EnhancedWebsocket
+from bittrade_kraken_websocket.connection.public import \
+    public_websocket_connection
+from bittrade_kraken_websocket.development import debug_observer, info_observer, LogOnDisposeDisposable
 from bittrade_kraken_websocket.events.subscribe import subscribe_to_channel
 from bittrade_kraken_websocket.messages.listen import keep_messages_only
 
 console = RichHandler()
-console.setLevel(logging.DEBUG)
+console.setLevel(logging.INFO)  # <- if you wish to see subscribe/unsubscribe and raw messages, change to DEBUG
 logger = logging.getLogger(
     'bittrade_kraken_websocket'
 )
@@ -36,7 +32,8 @@ messages = socket_connection.pipe(
 messages.subscribe(debug_observer('ALL MESSAGES'))
 # Subscribe to multiple channels only when socket connects
 ready = socket_connection.pipe(
-    map_socket_only()
+    filter_new_socket_only(),
+    share()
 )
 # subscribe_to_channel gives an observable with only the messages from that channel
 ready.pipe(
@@ -46,15 +43,18 @@ ready.pipe(
 )
 
 # Disposing of the subscription to channel triggers sending the "unsubscribe" socket message. If needed to get around that, use share() or publish()
-to_be_disposed = ready.pipe(
-    subscribe_to_channel(messages, channel=CHANNEL_SPREAD, pair='XRP/USD')
-).subscribe(
-    info_observer('SPREAD XRP')
+to_be_disposed = LogOnDisposeDisposable(
+    ready.pipe(
+        subscribe_to_channel(messages, channel=CHANNEL_SPREAD, pair='XRP/USD')
+    ).subscribe(
+        info_observer('SPREAD XRP')
+    ),
+    message='From here on, SPREAD XRP messages should not appear anymore'
 )
 
 sub = socket_connection.connect()
 
 scheduler = TimeoutScheduler()
 
-scheduler.schedule_relative(20, lambda *_: to_be_disposed.dispose())  # the "messages" will now show only "ticker", no more "spread"
+scheduler.schedule_relative(10, lambda *_: to_be_disposed.dispose())  # the "messages" will now show only "ticker", no more "spread"
 scheduler.schedule_relative(60, lambda *_: sub.dispose()) # because all the subscriptions here are children of the socket connectable observable, everything will get cleaned up and websocket closed

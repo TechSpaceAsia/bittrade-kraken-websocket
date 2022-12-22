@@ -33,6 +33,6 @@ def keep_status_only() -> Callable[[Observable], Observable[Status]]:
 
 def filter_new_socket_only() -> Callable[[Observable[WebsocketBundle]], Observable[EnhancedWebsocket]]:
     return compose(
-        operators.distinct_until_changed(lambda x: x[0]),
         operators.map(lambda x: x[0]),
+        operators.distinct_until_changed(),
     )

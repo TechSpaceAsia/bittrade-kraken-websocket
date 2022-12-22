@@ -1,6 +1,6 @@
 from reactivex.testing import ReactiveTest, TestScheduler
 
-from bittrade_kraken_websocket.messages.sequence import in_sequence, InvalidSequence, repeat_on_invalid_sequence
+from bittrade_kraken_websocket.messages.sequence import in_sequence, InvalidSequence, retry_on_invalid_sequence
 
 on_next = ReactiveTest.on_next
 on_error = ReactiveTest.on_error
@@ -23,7 +23,7 @@ def test_in_sequence_accepts_any_first_value():
     ]
 
 
-def test_in_ok_until_completion():
+def test_in_sequence_ok_until_completion():
     scheduler = TestScheduler()
     source = scheduler.create_hot_observable(
         on_next(250, ["w", "", {"sequence": 1}]),
@@ -83,19 +83,15 @@ def test_in_fail_halfway():
     ]
 
 
-def test_repeat_on_invalid_sequence():
+def test_retry_on_invalid_sequence():
     scheduler = TestScheduler()
     source = scheduler.create_cold_observable(
         on_next(100, {"sequence": 1}),
         on_next(120, {"sequence": 2}),
         on_error(140, InvalidSequence()),
     )
-    do_this_first = scheduler.create_cold_observable(
-        on_next(20, 'Hi'),
-        on_completed(30)
-    )
     results = scheduler.start(lambda: source.pipe(
-        repeat_on_invalid_sequence(do_this_first)
+        retry_on_invalid_sequence()
     ), created=10, subscribed=70, disposed=540)
 
     assert results.messages == [
@@ -112,7 +108,7 @@ def test_repeat_on_invalid_sequence():
     ]
 
 
-def test_repeat_on_invalid_sequence_one_down():
+def test_retry_on_invalid_sequence_one_down():
     scheduler = TestScheduler()
     source = scheduler.create_hot_observable(
         on_next(50, ["", "", {"sequence": 5}]),
@@ -132,7 +128,7 @@ def test_repeat_on_invalid_sequence_one_down():
     )
     results = scheduler.start(lambda: source.pipe(
         in_sequence(),
-        repeat_on_invalid_sequence(do_this_first)
+        retry_on_invalid_sequence(do_this_first)
     ), created=10, subscribed=70, disposed=540)
 
     assert results.messages == [

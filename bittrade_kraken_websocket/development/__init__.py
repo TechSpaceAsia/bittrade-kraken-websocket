@@ -1,6 +1,6 @@
 from typing import Callable
 
-from reactivex import Observer
+from reactivex import Observer, operators
 from logging import getLogger
 from rich.console import Console
 import traceback
@@ -8,6 +8,7 @@ import sys
 
 logger = getLogger(__name__)
 console = Console()
+
 
 def debug_observer(prefix: str):
     def fn(x, scope):
@@ -22,6 +23,10 @@ def debug_observer(prefix: str):
     )
 
 
+def debug_operator(prefix: str):
+    return operators.do(debug_observer(prefix))
+
+
 def info_observer(prefix: str):
     def fn(x, scope):
         logger.info(f'[{prefix}][{scope}] - {x}')
@@ -32,10 +37,6 @@ def info_observer(prefix: str):
         lambda: fn('No message on completion', 'COMPLETE'),
     )
 
-def wrap_operator(op: Callable, find_me: str):
-    def fn(*args, **kwargs):
-        print('WRAPPED', find_me, args, kwargs, op.__name__)
-        result = op(*args, **kwargs)
-        print(result)
-        return result
-    return fn
+
+def info_operator(prefix: str):
+    return operators.do(info_observer(prefix))

@@ -53,6 +53,7 @@ def retry_with_backoff(stabilized: Observable = None, delays_pattern: Optional[G
         delays_pattern = gen
 
     def _retry_reconnect(source: Observable[_T]) -> Observable[_T]:
+        # TODO move this to a SerialDisposable or something using switch_latest
         current_stable_subscription = [Disposable(action=lambda *_: logger.info('[BACKOFF] Cancelling fake initial sub'))]
 
         def delay_generator(scheduler):

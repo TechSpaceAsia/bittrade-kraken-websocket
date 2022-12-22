@@ -61,9 +61,10 @@ connection = private_websocket_connection(token_generator).pipe(
     retry_with_backoff(),
     publish()
 )
-connection.pipe(
-    keep_status_only()
-).subscribe(debug_observer('Socket status'))
+# Uncomment this to see the status of the socket being emitted
+# connection.pipe(
+#     keep_status_only()
+# ).subscribe(info_observer('Socket status'))
 all_messages = connection.pipe(
     keep_messages_only(),
     share()
@@ -73,7 +74,7 @@ new_sockets = connection.pipe(
     share()
 )
 
-# Uncomment this to see the socket reconnect in action (probably no backoff since kraken isn't actually disconnecting), followed by the resubscription to the channels
+# Uncomment this to see the socket reconnect in action (probably no backoff since kraken isn't actually disconnecting), followed by the re-subscription to the channels
 # def force_close(socket: EnhancedWebsocket):
 #     def close_me(*args):
 #         socket.socket.close(status=1008)
@@ -83,29 +84,31 @@ new_sockets = connection.pipe(
 #     operators.do_action(on_next=force_close)
 # ).subscribe()
 
-# Uncomment this, and comment the open_orders below to see a fake sequence problem in subscription and the subsequent unsub/sub; you'll also need to place an order which should result in a sequence 3 at least - or you can change the code below to == 1
-def mess_up_sequence(x):
-    try:
-        if x[2]['sequence'] == 3:
-            x[2]['sequence'] = 5
-    except:
-        pass
-    return x
 
 open_orders = new_sockets.pipe(
-    subscribe_to_private_channel(
-        all_messages.pipe(
-            operators.map(mess_up_sequence)
-        )
-    , CHANNEL_OPEN_ORDERS)
+    subscribe_to_private_channel(all_messages, CHANNEL_OPEN_ORDERS)
 )
-open_orders.subscribe(info_observer('[MESSED UP ORDERS]'))
+open_orders.subscribe(info_observer('[OPEN ORDERS]'))
 
 
+# Uncomment this, (and comment out the original open_orders above) to see a fake sequence problem in subscription and the subsequent unsub/sub; you'll also need to place an order which should result in a sequence 3 at least - or you can change the code below to == 1
+# def mess_up_sequence(x):
+#     try:
+#         if x[2]['sequence'] == 3:
+#             x[2]['sequence'] = 5
+#     except:
+#         pass
+#     return x
+#
 # open_orders = new_sockets.pipe(
-#     subscribe_to_private_channel(all_messages, CHANNEL_OPEN_ORDERS)
+#     subscribe_to_private_channel(
+#         all_messages.pipe(
+#             operators.map(mess_up_sequence)
+#         )
+#     , CHANNEL_OPEN_ORDERS)
 # )
-# open_orders.subscribe(info_observer('[OPEN ORDERS]'))
+# open_orders.subscribe(info_observer('[MESSED UP ORDERS]'))
+
 
 # Uncomment this to see additional socket connection in action
 # own_trades = new_sockets.pipe(

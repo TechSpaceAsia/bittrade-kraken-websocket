@@ -4,8 +4,6 @@ from typing import Callable, Dict, List
 import reactivex
 from reactivex import Observable, compose, operators
 
-from bittrade_kraken_websocket.development import debug_observer, wrap_operator
-
 logger = getLogger(__name__)
 
 

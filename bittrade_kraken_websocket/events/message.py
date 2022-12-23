@@ -1,14 +1,19 @@
 import dataclasses
-from typing import List, Optional
+from typing import List, Optional, TypedDict
 
-from bittrade_kraken_websocket.events.events import EventType
+from bittrade_kraken_websocket.events import EventName
 
 
-@dataclasses.dataclass
-class RequestMessage:
-    event: EventType
+class Subscription(TypedDict):
+    name: str
 
-@dataclasses.dataclass
-class SubscriptionRequestMessage:
-    event: EventType
-    pair: Optional[List[str]] = None
+
+class RequestMessage(TypedDict):
+    event: EventName
+
+
+class SubscriptionRequestMessage(TypedDict):
+    event: EventName
+    pair: Optional[List[str]]
+    subscription: Subscription
+

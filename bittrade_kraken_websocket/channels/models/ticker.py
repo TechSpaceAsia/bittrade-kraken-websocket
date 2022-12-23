@@ -1,5 +1,5 @@
 import dataclasses
-from typing import NamedTuple
+from typing import NamedTuple, TypedDict
 
 Level = NamedTuple('Level', price=str, whole_lot_volume=int, lot_volume=str)
 
@@ -11,8 +11,7 @@ Order = NamedTuple('Order', today=str, last_24_hours=str)
 TradeVolume = NamedTuple('TradeVolume', today=int, last_24_hours=int)
 
 
-@dataclasses.dataclass
-class TickerPayload:
+class TickerPayload(TypedDict):
     """https://docs.kraken.com/websockets/#message-ticker"""
     a: Level  #ask
     b: Level  #bid

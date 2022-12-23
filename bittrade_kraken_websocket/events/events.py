@@ -1,12 +1,11 @@
-from typing import Literal
-
-EVENT_ADD_ORDER = 'addOrder'
-EVENT_CANCEL_ORDER = 'cancelOrder'
-EVENT_EDIT_ORDER = 'editOrder'
-EVENT_CANCEL_ALL = 'cancelAll'
-EVENT_CANCEL_ALL_ORDERS_AFTER = 'cancelAllOrdersAfter'
-EVENT_SUBSCRIBE = 'subscribe'
-EVENT_UNSUBSCRIBE = 'unsubscribe'
+import enum
 
 
-EventType = Literal[EVENT_ADD_ORDER, EVENT_CANCEL_ORDER, EVENT_EDIT_ORDER, EVENT_CANCEL_ALL, EVENT_CANCEL_ALL_ORDERS_AFTER]
+class EventName(enum.Enum):
+    EVENT_ADD_ORDER = 'addOrder'
+    EVENT_CANCEL_ORDER = 'cancelOrder'
+    EVENT_EDIT_ORDER = 'editOrder'
+    EVENT_CANCEL_ALL = 'cancelAll'
+    EVENT_CANCEL_ALL_ORDERS_AFTER = 'cancelAllOrdersAfter'
+    EVENT_SUBSCRIBE = 'subscribe'
+    EVENT_UNSUBSCRIBE = 'unsubscribe'

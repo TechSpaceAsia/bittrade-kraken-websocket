@@ -5,7 +5,7 @@ from typing import Callable, Dict, List, Optional
 
 import reactivex
 from reactivex import Observable, operators, Observer, compose
-from reactivex.operators import do_action
+from reactivex.operators import do_action, Mapper
 
 from bittrade_kraken_websocket.events.events import EventType, EVENT_SUBSCRIBE
 
@@ -14,6 +14,7 @@ from logging import getLogger
 logger = getLogger(__name__)
 
 EventCaller = Callable[[Dict, int], Observable]
+
 
 def wait_for_response(is_match: Callable | int, timeout: float):
     if type(is_match) == int:
@@ -29,7 +30,7 @@ def wait_for_response(is_match: Callable | int, timeout: float):
 def request_response(sender: Observer[Dict], messages: Observable[Dict | List], timeout: float) -> EventCaller:
     def send_event_message(request_message: Dict):
         if 'reqid' not in request_message:
-            request_message['reqid'] = uuid.uuid4().int & (1 << 64)-1
+            request_message['reqid'] = uuid.uuid4().int & (1 << 64) - 1
 
         def subscribe(observer: Observer, scheduler=None):
             merged = messages.pipe(
@@ -39,7 +40,8 @@ def request_response(sender: Observer[Dict], messages: Observable[Dict | List], 
             ).pipe(
                 do_action(
                     on_completed=lambda: logger.info('Received response to request: %s', request_message),
-                    on_error=lambda exc: logger.error('Failed to get response for request %s -> %s', request_message, exc, exc_info=True)
+                    on_error=lambda exc: logger.error('Failed to get response for request %s -> %s', request_message,
+                                                      exc, exc_info=True)
                 ),
             )
 
@@ -54,7 +56,9 @@ def request_response(sender: Observer[Dict], messages: Observable[Dict | List], 
 def build_matcher(reqid: int):
     def matcher(message: Dict | List):
         return type(message) == dict and message.get('reqid') == reqid
+
     return matcher
+
 
 class RequestResponseError(Exception):
     pass

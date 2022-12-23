@@ -64,15 +64,15 @@ def test_request_response_factory_timeout():
             send_request=on_enter,
             id_generator=id_generator,
             messages=messages,
-            timeout=500
+            timeout=350.0
         )
 
     result = scheduler.start(create)
-    assert result.messages == [on_error(500, Exception('Timeout'))]
+    assert result.messages == [on_error(550, Exception('Timeout'))]
 
-    assert messages.subscriptions == [Subscription(200, 500)]
+    assert messages.subscriptions == [Subscription(200, 550)]
 
-    on_enter.assert_called_once_with()
+    on_enter.assert_called_once_with(300)
 
 
 def test_request_response_success():
@@ -238,7 +238,11 @@ def test_wait_for_response_got_it():
     def is_match(m):
         return m.get('status') == 'yolo'
 
-    results = scheduler.start(lambda: messages.pipe(wait_for_response(is_match, timeout)))
+    results = scheduler.start(lambda: messages.pipe(
+        wait_for_response(
+            is_match, timeout
+        )
+    ))
 
     assert results.messages == [
         on_next(450, {'status': 'yolo'}),

@@ -98,17 +98,14 @@ def test_retry_on_invalid_sequence():
         on_next(70+100, {"sequence": 1}),
         on_next(70+120, {"sequence": 2}),
         # at 70+140 catches exception
-        on_next(70+140+20, 'Hi'),
-        # at 70+140+30 done with "do this first, starts again
-        on_next(70+140+30+100, {"sequence": 1}),
-        on_next(70+140+30+120, {"sequence": 2}),
-        on_next(70+140+30+140+20, 'Hi'),
-        on_next(510, {"sequence": 1}),
-        on_next(530, {"sequence": 2}),
+        on_next(70+140+100, {"sequence": 1}),
+        on_next(70+140+120, {"sequence": 2}),
+        on_next(450, {"sequence": 1}),
+        on_next(470, {"sequence": 2}),
     ]
 
 
-def test_retry_on_invalid_sequence_one_down():
+def test_retry_on_invalid_sequence_combined_with_in_sequence():
     scheduler = TestScheduler()
     source = scheduler.create_hot_observable(
         on_next(50, ["", "", {"sequence": 5}]),
@@ -122,24 +119,16 @@ def test_retry_on_invalid_sequence_one_down():
         on_next(500, ["", "", {"sequence": 2}]),
         on_next(600, ["", "", {"sequence": 5}]),
     )
-    do_this_first = scheduler.create_cold_observable(
-        on_next(20, 'Hi'),
-        on_completed(30)
-    )
     results = scheduler.start(lambda: source.pipe(
         in_sequence(),
-        retry_on_invalid_sequence(do_this_first)
+        retry_on_invalid_sequence()
     ), created=10, subscribed=70, disposed=540)
 
     assert results.messages == [
         on_next(100, ["", "", {"sequence": 1}]),
         on_next(120, ["", "", {"sequence": 2}]),
-        # at 140 catches exception
-        on_next(140+20, 'Hi'),
-        # at 70+140+30 done with "do this first, starts again
         on_next(200, ["", "", {"sequence": 1}]),
         on_next(250, ["", "", {"sequence": 2}]),
-        on_next(320, 'Hi'),
         on_next(400, ["", "", {"sequence": 1}]),
         on_next(500, ["", "", {"sequence": 2}]),
     ]

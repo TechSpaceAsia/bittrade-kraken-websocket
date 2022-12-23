@@ -18,7 +18,6 @@ on_completed = ReactiveTest.on_completed
 subscribe = ReactiveTest.subscribe
 
 
-
 def test_subscribe_v2():
     scheduler = TestScheduler()
     inner_obs = scheduler.create_cold_observable(
@@ -49,66 +48,33 @@ def test_subscribe_v2():
     assert inner_obs.subscriptions == [Subscription(300, 400), Subscription(500, 1000)]
     assert inner_obs2.subscriptions == [Subscription(400, 500)]
 
-def test_request_response_factory_timeout_using_next():
+
+def test_request_response_factory_timeout():
     scheduler = TestScheduler()
     messages = scheduler.create_hot_observable(
         on_next(300, {"event": "addOrderStatus", "reqid": 9}),
         on_next(400, {"event": "statusNotMatter", "reqid": 100}),
-        on_next(600, {"event": "statusNotMatter", "reqid": 300}), # 600 > 200+300 - too late
+        on_next(600, {"event": "statusNotMatter", "reqid": 300}),  # 600 > 200+300 - too late
     )
-    timeout = scheduler.create_cold_observable(on_next(300, None))
+    id_generator = reactivex.return_value(300)
     on_enter = MagicMock()
-    result = scheduler.start(lambda: request_response_factory(on_enter=on_enter, message_id=300, messages=messages, timeout=timeout))
-    assert result.messages == [on_error(500, TimeoutError())]
+
+    def create():
+        return request_response_factory(
+            send_request=on_enter,
+            id_generator=id_generator,
+            messages=messages,
+            timeout=500
+        )
+
+    result = scheduler.start(create)
+    assert result.messages == [on_error(500, Exception('Timeout'))]
 
     assert messages.subscriptions == [Subscription(200, 500)]
-    assert timeout.subscriptions == [Subscription(200, 500)]
 
     on_enter.assert_called_once_with()
 
 
-
-def test_request_response_timeout_using_next():
-    scheduler = TestScheduler()
-    sender = scheduler.create_observer()
-    messages = scheduler.create_hot_observable(
-        on_next(300, {"event": "addOrderStatus", "reqid": 9}),
-        on_next(400, {"event": "incorrectStatus", "reqid": 100}),
-    )
-    timeout = scheduler.create_hot_observable(on_next(800, None))
-    factory = request_response(sender, messages, timeout)
-
-    def create():
-        return factory({"abc": 42, "reqid": 300})
-
-    result = scheduler.start(create)
-    assert len(result.messages) == 1
-    assert result.messages[0].time == 800
-    assert type(result.messages[0].value.exception) == TimeoutError
-
-    assert messages.subscriptions == [Subscription(200, 800)]
-    assert timeout.subscriptions == [Subscription(200, 800)]
-
-
-def test_request_response_timeout_using_error():
-    scheduler = TestScheduler()
-    sender = scheduler.create_observer()
-    messages = scheduler.create_hot_observable(
-        on_next(300, {"event": "addOrderStatus", "reqid": 9}),
-        on_next(600, {"event": "editOrderStatus", "reqid": 100}),
-    )
-    timeout = scheduler.create_hot_observable(on_error(400, TimeoutError('abc')))
-    factory = request_response(sender, messages, timeout)
-
-    def create():
-        return factory({"abc": 42, "reqid": 100})
-
-    result = scheduler.start(create)
-    assert result.messages == [on_error(400, TimeoutError('abc'))]
-    assert messages.subscriptions == [Subscription(200, 400)]
-    assert timeout.subscriptions == [Subscription(200, 400)]
-
-
 def test_request_response_success():
     scheduler = TestScheduler()
     sender = scheduler.create_observer()
@@ -141,7 +107,7 @@ def test_request_response_success():
         on_next(500, {"event": "addOrderStatus", "reqid": 100, "more": "stuff"}),
         on_next(600, {"event": "addOrderStatus", "reqid": 100, "more": "stuff again"}),
     )
-    timeout = scheduler.create_cold_observable(on_next(800, None))
+    timeout = 800.0
     factory = request_response(sender, messages, timeout)
 
     def create():
@@ -154,7 +120,6 @@ def test_request_response_success():
     ]
 
     assert messages.subscriptions == [Subscription(200, 500)]
-    assert timeout.subscriptions == [Subscription(200, 500)]
 
 
 def test_request_response_success_repeat_same_id():
@@ -169,7 +134,7 @@ def test_request_response_success_repeat_same_id():
         on_next(1000, {"event": "addOrderStatus", "reqid": 100, "more": "stuff again"}),
     )
     # Important! This confirms that the timeout is "per request" since we are still live at t=900. As long as the timeout isn't exceeded between t=0-500 and t=680-900
-    timeout = scheduler.create_cold_observable(on_next(800, None))
+    timeout = 800.0
     factory = request_response(sender, messages, timeout)
 
     o1 = factory({"abc": 42, "reqid": 100})
@@ -186,7 +151,6 @@ def test_request_response_success_repeat_same_id():
     ]
 
     assert messages.subscriptions == [Subscription(0, 500), Subscription(680, 900)]
-    assert timeout.subscriptions == messages.subscriptions
 
 
 def test_response_ok():
@@ -218,7 +182,7 @@ def test_request_response_success_reuse_different_ids():
         on_next(900, {"event": "addOrderStatus", "reqid": 100, "more": "stuff again"}),
     )
     # This confirms that the timeout is "per request" since we are still live at t=900. As long as the timeout isn't exceeded between t=0-500 and t=680-900
-    timeout = scheduler.create_cold_observable(on_next(400, None))
+    timeout = 400.0
 
     factory = request_response(sender, messages, timeout)
 
@@ -235,8 +199,7 @@ def test_request_response_success_reuse_different_ids():
         on_completed(800),
     ]
 
-    assert messages.subscriptions == [Subscription(0.0, 300.0), Subscription(650.0, 800)]
-    assert timeout.subscriptions == messages.subscriptions
+    assert messages.subscriptions == [Subscription(0, 300), Subscription(650, 800)]
 
 
 def test_request_response_subscription():
@@ -245,15 +208,17 @@ def test_request_response_subscription():
     messages = scheduler.create_hot_observable(
         from_sample('subscribe.jsonl')
     )
-    timeout = scheduler.create_cold_observable(on_next(400, None))
+    timeout = 400.0
     caller = request_response(
         sender, messages, timeout
     )
     results = scheduler.start(
-        lambda: caller({"reqid": 12870497960778414923, 'event': 'subscribe', 'pair': ['USDT/USD'], 'subscription': {'name': 'ticker'}}))
+        lambda: caller({"reqid": 12870497960778414923, 'event': 'subscribe', 'pair': ['USDT/USD'],
+                        'subscription': {'name': 'ticker'}}))
 
     assert results.messages == [
-        on_next(220, {"channelID": 1028, "reqid": 12870497960778414923, "channelName": "ticker", "event": "subscriptionStatus", "pair": "USDT/USD",
+        on_next(220, {"channelID": 1028, "reqid": 12870497960778414923, "channelName": "ticker",
+                      "event": "subscriptionStatus", "pair": "USDT/USD",
                       "status": "subscribed", "subscription": {"name": "ticker"}}),
         on_completed(220)
     ]
@@ -268,7 +233,7 @@ def test_wait_for_response_got_it():
         on_next(450, {'status': 'yolo'}),
         on_next(550, {'status': 'yolo'}),
     )
-    timeout = reactivex.interval(800, scheduler=scheduler)
+    timeout = 800.0
 
     def is_match(m):
         return m.get('status') == 'yolo'
@@ -290,15 +255,17 @@ def test_wait_for_response_timeout():
         on_next(450, {'status': 'yolo'}),
         on_next(550, {'status': 'yolo'}),
     )
-    timeout = reactivex.interval(230, scheduler=scheduler)
+    timeout = 230.0
 
     def is_match(m):
         return m.get('status') == 'yolo'
 
-    results = scheduler.start(lambda: messages.pipe(wait_for_response(is_match, timeout)))
+    results = scheduler.start(lambda: messages.pipe(
+        wait_for_response(is_match, timeout)
+    ))
 
     assert results.messages == [
-        on_error(200 + 230, TimeoutError()),
+        on_error(200 + 230, Exception('Timeout')),
     ]
 
 

@@ -15,22 +15,18 @@ logger = getLogger(__name__)
 
 EventCaller = Callable[[Dict, int], Observable]
 
-def wait_for_response(is_match: Callable | int, timeout: Observable):
+def wait_for_response(is_match: Callable | int, timeout: float):
     if type(is_match) == int:
         is_match = build_matcher(is_match)
     return compose(
-        operators.merge(
-            timeout.pipe(
-                operators.flat_map(reactivex.throw(TimeoutError()))
-            )
-        ),
         operators.filter(is_match),
         operators.do_action(on_next=lambda x: logger.debug('[SOCKET] Received matching message')),
         operators.take(1),
+        operators.timeout(timeout),
     )
 
 
-def request_response(sender: Observer[Dict], messages: Observable[Dict | List], timeout: Observable) -> EventCaller:
+def request_response(sender: Observer[Dict], messages: Observable[Dict | List], timeout: float) -> EventCaller:
     def send_event_message(request_message: Dict):
         if 'reqid' not in request_message:
             request_message['reqid'] = uuid.uuid4().int & (1 << 64)-1

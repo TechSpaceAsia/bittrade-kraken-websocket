@@ -1,11 +1,11 @@
 from concurrent.futures import ThreadPoolExecutor
-from threading import Lock
-from typing import TypeVar, Tuple, Dict, Literal, Union, List, Optional
 from logging import getLogger
+from typing import Tuple, Dict, Literal, Union, List, Optional
 
 import orjson
 import reactivex.disposable
-from reactivex import Observable, Observer
+from reactivex import Observable
+from reactivex.abc import SchedulerBase, ObserverBase
 from websocket import WebSocketConnectionClosedException, WebSocketApp
 
 from bittrade_kraken_websocket.connection.enhanced_websocket import EnhancedWebsocket
@@ -27,7 +27,7 @@ def websocket_connection(token_generator: Optional[Observable[str]] = None) -> O
     is_private = token_generator is not None
     url = f'wss://ws{"-auth" if is_private else ""}.kraken.com'
 
-    def subscribe(observer: Observer, scheduler=None):
+    def subscribe(observer: ObserverBase, _scheduler: Optional[SchedulerBase] = None):
         def on_error(_ws, error):
             logger.error('[SOCKET][RAW] Websocket errored %s', error)
             observer.on_next((enhanced, WEBSOCKET_STATUS, WEBSOCKET_CLOSED))

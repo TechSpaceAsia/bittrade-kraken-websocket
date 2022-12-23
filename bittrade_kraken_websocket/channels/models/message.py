@@ -1,4 +1,4 @@
-from typing import Dict, List, Tuple, TypedDict
+from typing import Dict, List, Tuple, TypedDict, TypeVar, Generic
 
 
 class PrivateSequence(TypedDict):
@@ -7,5 +7,5 @@ class PrivateSequence(TypedDict):
 
 PrivateMessage = Tuple[List, str, PrivateSequence]
 
-# Note that these don't match Orderbook update messages
+# Note that these don't match quite Orderbook update messages which may have 5 values
 PublicMessage = Tuple[int, List | Dict, str, str]

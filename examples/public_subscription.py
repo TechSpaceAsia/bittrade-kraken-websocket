@@ -1,20 +1,17 @@
 import logging
 
-import reactivex
 from reactivex.operators import share
 from reactivex.scheduler import TimeoutScheduler
-from reactivex.disposable import CompositeDisposable, Disposable
 from rich.logging import RichHandler
 
-from bittrade_kraken_websocket.channels import (CHANNEL_OHLC, CHANNEL_SPREAD,
+from bittrade_kraken_websocket.channels import (CHANNEL_SPREAD,
                                                 CHANNEL_TICKER)
 from bittrade_kraken_websocket.operators import (
-    map_socket_only, filter_new_socket_only)
-from bittrade_kraken_websocket.connection.generic import EnhancedWebsocket
+    filter_new_socket_only)
 from bittrade_kraken_websocket.connection.public import \
     public_websocket_connection
 from bittrade_kraken_websocket.development import debug_observer, info_observer, LogOnDisposeDisposable
-from bittrade_kraken_websocket.events.subscribe import subscribe_to_channel
+from bittrade_kraken_websocket.channels.subscribe import subscribe_to_channel
 from bittrade_kraken_websocket.messages.listen import keep_messages_only
 
 console = RichHandler()

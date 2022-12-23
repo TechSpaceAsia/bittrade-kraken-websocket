@@ -1,5 +1,4 @@
-import dataclasses
-from typing import NamedTuple, TypedDict
+from typing import NamedTuple, TypedDict, Tuple
 
 Level = NamedTuple('Level', price=str, whole_lot_volume=int, lot_volume=str)
 
@@ -22,4 +21,3 @@ class TickerPayload(TypedDict):
     l: Order # low price
     h: Order # high price
     o: Order # open price
-

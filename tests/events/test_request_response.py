@@ -1,4 +1,3 @@
-from typing import Dict
 from unittest.mock import MagicMock
 
 import pytest
@@ -9,7 +8,7 @@ from reactivex.testing.subscription import Subscription
 
 from bittrade_kraken_websocket.events.request_response import request_response, _response_ok, RequestResponseError, \
     wait_for_response, build_matcher
-from bittrade_kraken_websocket.events.subscribe import request_response_factory
+from bittrade_kraken_websocket.events import request_response_factory
 from tests.helpers.from_sample import from_sample
 
 on_next = ReactiveTest.on_next
@@ -83,7 +82,7 @@ def test_request_response_success():
         on_next(500, {"event": "addOrderStatus", "reqid": 100, "more": "stuff"}),
         on_next(600, {"event": "addOrderStatus", "reqid": 100, "more": "stuff again"}),
     )
-    timeout = scheduler.create_hot_observable(on_next(800, None))
+    timeout = 800.0
     factory = request_response(sender, messages, timeout)
 
     def create():
@@ -96,7 +95,6 @@ def test_request_response_success():
     ]
 
     assert messages.subscriptions == [Subscription(200, 500)]
-    assert timeout.subscriptions == [Subscription(200, 500)]
 
 
 def test_request_response_success():
@@ -154,20 +152,20 @@ def test_request_response_success_repeat_same_id():
 
 
 def test_response_ok():
-    assert _response_ok({"status": "ok", "lala": "blop"}) == {"status": "ok", "lala": "blop"}
+    assert _response_ok({"status": "ok", "lala": "hello"}) == {"status": "ok", "lala": "hello"}
     with pytest.raises(RequestResponseError) as exc:
         _response_ok({"status": "error", "errorMessage": "lala"})
     assert str(exc.value) == 'lala'
-    with pytest.raises(Exception) as exc:
+    with pytest.raises(Exception):
         _response_ok({"other stuff": "error", "errorMessage": "lala"})
 
 
 def test_response_ok_other_status():
-    assert _response_ok({"status": "subscribed", "lala": "blop"}, good_status="subscribed") == {"status": "subscribed",
-                                                                                                "lala": "blop"}
-    with pytest.raises(RequestResponseError) as exc:
+    assert _response_ok({"status": "subscribed", "lala": "hello"}, good_status="subscribed") == {"status": "subscribed",
+                                                                                                "lala": "hello"}
+    with pytest.raises(RequestResponseError):
         _response_ok({"status": "bad one", "errorMessage": "lala"}, bad_status="bad one")
-    with pytest.raises(Exception) as exc:
+    with pytest.raises(Exception):
         _response_ok({"other stuff": "error", "errorMessage": "lala", "status": "other"}, "good", "bad")
 
 
@@ -178,7 +176,7 @@ def test_request_response_success_reuse_different_ids():
         on_next(300, {"event": "addOrderStatus", "reqid": 100, "more": "stuff"}),
         on_next(600, {"event": "addOrderStatus", "reqid": 100, "more": "stuff again"}),
         on_next(700, {"event": "addOrderStatus", "reqid": 9}),
-        on_next(800, {"event": "addOrderStatus", "reqid": 5, "more": "LADIDA"}),
+        on_next(800, {"event": "addOrderStatus", "reqid": 5, "more": "yellow"}),
         on_next(900, {"event": "addOrderStatus", "reqid": 100, "more": "stuff again"}),
     )
     # This confirms that the timeout is "per request" since we are still live at t=900. As long as the timeout isn't exceeded between t=0-500 and t=680-900
@@ -195,7 +193,7 @@ def test_request_response_success_reuse_different_ids():
     assert v.messages == [
         on_next(300, {"event": "addOrderStatus", "reqid": 100, "more": "stuff"}),
         on_completed(300),
-        on_next(800, {"event": "addOrderStatus", "reqid": 5, "more": "LADIDA"}),
+        on_next(800, {"event": "addOrderStatus", "reqid": 5, "more": "yellow"}),
         on_completed(800),
     ]
 

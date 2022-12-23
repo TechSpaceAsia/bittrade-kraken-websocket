@@ -9,3 +9,11 @@ class ChannelName(enum.Enum):
     CHANNEL_TRADE = 'trade'
     CHANNEL_OWN_TRADES = 'ownTrades'
     CHANNEL_OPEN_ORDERS = 'openOrders'
+
+
+from .ticker import subscribe_ticker
+
+__all__ = [
+    "subscribe_ticker",
+    "ChannelName",
+]

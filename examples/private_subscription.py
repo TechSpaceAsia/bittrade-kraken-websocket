@@ -1,25 +1,20 @@
 import logging
 import signal
-from os import getenv
 
 import reactivex
-from reactivex import operators
 from reactivex.operators import publish, share, take
 from reactivex.scheduler import ThreadPoolScheduler, TimeoutScheduler
 from rich.logging import RichHandler
 
-from bittrade_kraken_websocket.channels import CHANNEL_OPEN_ORDERS, CHANNEL_OWN_TRADES
+from bittrade_kraken_websocket.channels import CHANNEL_OPEN_ORDERS
 from bittrade_kraken_websocket.connection import private_websocket_connection, retry_with_backoff
 from bittrade_kraken_rest.endpoints.private.get_websockets_token import get_websockets_token
 from pathlib import Path
 import urllib, hmac, base64, hashlib
 
-from bittrade_kraken_websocket.connection.connection_operators import authenticated_socket, ready_socket, \
-    map_socket_only
-from bittrade_kraken_websocket.connection.enhanced_websocket import EnhancedWebsocket
-from bittrade_kraken_websocket.development import debug_observer, info_observer
-from bittrade_kraken_websocket.events.subscribe import subscribe_to_channel
-from bittrade_kraken_websocket.messages.listen import keep_messages_only, keep_status_only, filter_new_socket_only
+from bittrade_kraken_websocket.development import info_observer
+from bittrade_kraken_websocket.channels.subscribe import subscribe_to_channel
+from bittrade_kraken_websocket.messages.listen import keep_messages_only, filter_new_socket_only
 
 console = RichHandler()
 console.setLevel(logging.DEBUG)

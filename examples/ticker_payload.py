@@ -1,7 +1,7 @@
 import logging
+import time
 
 from reactivex.operators import share
-from reactivex.scheduler import TimeoutScheduler
 from rich.logging import RichHandler
 
 from bittrade_kraken_websocket.channels import subscribe_ticker
@@ -18,7 +18,7 @@ logger = logging.getLogger(
 )
 logger.setLevel(logging.DEBUG)
 logger.addHandler(console)
-socket_connection = public_websocket_connection(reconnect=True, shared=True)
+socket_connection = public_websocket_connection(reconnect=True)
 messages = socket_connection.pipe(
     keep_messages_only(),
     share()
@@ -29,10 +29,5 @@ socket_connection.pipe(
 ).subscribe(info_observer('TICKER'))
 
 sub = socket_connection.connect()
-
-scheduler = TimeoutScheduler()
-
-scheduler.schedule_relative(60, lambda *_: sub.dispose())  # because all the subscriptions here are children of the socket connectable observable, everything will get cleaned up and websocket closed
-
-while True:
-    pass
+time.sleep(20)
+sub.dispose()  # because all the subscriptions here are children of the socket connectable observable, everything will get cleaned up and websocket closed

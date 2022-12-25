@@ -1,9 +1,11 @@
 [tool.poetry]
 name = "bittrade-kraken-websocket"
 version = "0.2.0"
-description = "Websockets "
+description = "Reactive Websocket for Kraken"
 authors = ["mat <matt@techspace.asia>"]
 documentation = "README.md"
+repository = "https://github.com/TechSpaceAsia/bittrade-kraken-websocket"
+homepage = "https://github.com/TechSpaceAsia/bittrade-kraken-websocket"
 
 [tool.poetry.dependencies]
 python = "^3.10"

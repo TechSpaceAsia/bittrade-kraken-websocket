@@ -1,5 +1,5 @@
 import uuid
-from typing import Callable, Dict, List, Optional
+from typing import Callable, Dict, List, Optional, Any
 
 from reactivex import Observable, operators, Observer, compose
 from reactivex.abc import ObserverBase, SchedulerBase
@@ -12,7 +12,7 @@ logger = getLogger(__name__)
 EventCaller = Callable[[Dict, int], Observable]
 
 
-def wait_for_response(is_match: Callable | int, timeout: float):
+def wait_for_response(is_match: Callable[[Any], bool] | int, timeout: float) -> Callable[[Observable[Dict | List]], Observable[Dict]]:
     if type(is_match) == int:
         is_match = build_matcher(is_match)
     return compose(
@@ -91,7 +91,7 @@ class RequestResponseError(Exception):
     pass
 
 
-def _response_ok(response, good_status="ok", bad_status="error"):
+def _response_ok(response: Dict, good_status="ok", bad_status="error"):
     """
     Example from kraken:
     {
@@ -118,5 +118,5 @@ or {
         raise Exception('Unknown response type')
 
 
-def response_ok(good_status="ok", bad_status="error"):
+def response_ok(good_status="ok", bad_status="error") -> Callable[[Observable[Dict]], Observable[Dict]]:
     return operators.map(lambda response: _response_ok(response, good_status, bad_status))

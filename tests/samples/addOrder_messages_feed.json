@@ -1,0 +1,59 @@
+[{
+  "descr": "buy 10.00000000 USDTUSD @ limit 0.9980",
+  "event": "addOrderStatus",
+  "reqid": 5,
+  "status": "ok",
+  "txid": "OCI7RW-HMJJ2-WMMJBE"
+},
+[
+  [
+    {
+      "OCI7RW-HMJJ2-WMMJBE": {
+        "avg_price": "0.00000000",
+        "cost": "0.00000000",
+        "descr": {
+          "close": null,
+          "leverage": null,
+          "order": "buy 10.00000000 USDT/USD @ limit 0.99800000",
+          "ordertype": "limit",
+          "pair": "USDT/USD",
+          "price": "0.99800000",
+          "price2": "0.00000000",
+          "type": "buy"
+        },
+        "expiretm": null,
+        "fee": "0.00000000",
+        "limitprice": "0.00000000",
+        "misc": "",
+        "oflags": "fciq,post",
+        "opentm": "1671959066.926297",
+        "refid": null,
+        "starttm": null,
+        "status": "pending",
+        "stopprice": "0.00000000",
+        "timeinforce": "GTC",
+        "userref": 0,
+        "vol": "10.00000000",
+        "vol_exec": "0.00000000"
+      }
+    }
+  ],
+  "openOrders",
+  {
+    "sequence": 2
+  }
+],
+[
+  [
+    {
+      "OCI7RW-HMJJ2-WMMJBE": {
+        "status": "open",
+        "userref": 0
+      }
+    }
+  ],
+  "openOrders",
+  {
+    "sequence": 3
+  }
+]]

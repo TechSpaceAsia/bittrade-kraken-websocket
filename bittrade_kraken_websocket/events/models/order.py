@@ -26,17 +26,19 @@ class OrderStatus(Enum):
     blank = 'blank'
 
 
-def is_final_state(status: str):
-    return status in [OrderStatus.canceled.value, OrderStatus.open.value]
+def is_final_state(status: OrderStatus):
+    return status in [OrderStatus.canceled, OrderStatus.open]
 
+
+default_zero = '0.00000000'
 
 @dataclasses.dataclass
 class Order:
     order_id: str
     status: OrderStatus
     description: str
-    reference: str = ''
+    reference: int = 0
     open_time: str = ''
-    volume = Decimal(0.0)
-    volume_executed = Decimal(0.0)
+    volume: Decimal = dataclasses.field(default_factory=lambda: Decimal(default_zero))
+    volume_executed: Decimal = dataclasses.field(default_factory=lambda: Decimal(default_zero))
 

@@ -6,6 +6,7 @@ from typing import Dict, List, TypedDict, Optional, Literal, Tuple
 from reactivex import Observable, operators, Observer
 from reactivex.abc import ObserverBase, SchedulerBase
 from reactivex.subject import BehaviorSubject
+from reactivex.disposable import CompositeDisposable
 
 from bittrade_kraken_websocket.connection import EnhancedWebsocket
 from bittrade_kraken_websocket.events.models.order import Order, OrderType, OrderSide, OrderStatus, is_final_state
@@ -61,8 +62,8 @@ def map_response_to_order():
     return operators.map(_mapper_event_response_to_order)
 
 def order_related_messages_only(order_id: str):
-    def _order_related_messages_only(source) -> Observable[Dict]:
-        def subscribe(observer: Observer, scheduler=None):
+    def _order_related_messages_only(source: Observable[List]) -> Observable[Dict]:
+        def subscribe(observer: ObserverBase, scheduler: Optional[SchedulerBase] = None):
             def on_next(message):
                 try:
                     is_valid = message[1] == "openOrders" and order_id in message[0][0]
@@ -86,8 +87,8 @@ def order_related_messages_only(order_id: str):
 
 def update_order(existing: Order, message: Dict) -> Order:
     updates = {
-        'status': message['status'],
-        'user_reference': message['userref']
+        'status': OrderStatus(message['status']),
+        'reference': message['userref']
     }
     if 'vol' in message:
         updates['volume'] = Decimal(message['vol'])
@@ -102,36 +103,47 @@ def update_order(existing: Order, message: Dict) -> Order:
 
 def create_order_lifecycle(x: Tuple[AddOrderRequest, EnhancedWebsocket], messages: Observable[Dict | List]) -> Observable[Order]:
     request, connection = x
-    def subscribe(observer: ObserverBase, scheduler: Optional[SchedulerBase] = None) -> Observable[Order]:
+    def subscribe(observer: ObserverBase, scheduler: Optional[SchedulerBase] = None):
+        # To be on the safe side, we start recording messages at this stage; note that there is currently no sign of the websocket sending messages in the wrong order though
+        recorded_messages = messages.pipe(
+            operators.replay()
+        )
         def initial_order_received(order: Order):
             order_id = order.order_id
             observer.on_next(order)
-            messages.pipe(
+            return recorded_messages.pipe(
                 order_related_messages_only(order_id),
                 operators.scan(update_order, order),
                 operators.take_while(
-                    lambda o: is_final_state(o.status)
+                    lambda o: not is_final_state(o.status)
                     , inclusive=True)
-            ).subscribe(observer, scheduler=scheduler)
-        messages.pipe(
-            wait_for_response(request['reqid']),
+            )
+
+        obs = messages.pipe(
+            wait_for_response(request['reqid'], 5.0),
             response_ok(),
             map_response_to_order(),
-        ).subscribe(
-            on_next=initial_order_received, scheduler=scheduler
+            operators.flat_map(
+                initial_order_received
+            )
         )
         connection.send_json(request)
+        return CompositeDisposable(
+            obs.subscribe(observer, scheduler=scheduler),
+            recorded_messages.connect()
+        )
     return Observable(subscribe)
 
 
 
-def add_order_factory(sender: Observable[AddOrderRequest], socket: Observable[EnhancedWebsocket], messages: Observable[Dict | List]):
-    def partial_create_order_lifecycle(x: Tuple[AddOrderRequest, EnhancedWebsocket]):
-        return create_order_lifecycle(x, messages)
+def add_order_factory(socket: Observable[EnhancedWebsocket], messages: Observable[Dict | List]):
+    # Keep track of the latest socket for easier sending
+    connection: BehaviorSubject[Optional[EnhancedWebsocket]] = BehaviorSubject(None)
+    # Note: for the time being this creates an infinite subscription, at least until socket is completed
+    socket.subscribe(connection)
+    def add_order(request: AddOrderRequest) -> Observable[Order]:
+        current_connection = connection.value
+        return create_order_lifecycle((request, current_connection), messages)
 
-    return sender.pipe(
-        operators.with_latest_from(socket)
-    ).subscribe(
-        on_next=partial_create_order_lifecycle
-    )
+    return add_order
 

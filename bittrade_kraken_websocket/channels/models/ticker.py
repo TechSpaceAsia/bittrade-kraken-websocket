@@ -1,4 +1,4 @@
-from typing import NamedTuple, TypedDict, Tuple
+from typing import NamedTuple, TypedDict
 
 Level = NamedTuple('Level', price=str, whole_lot_volume=int, lot_volume=str)
 

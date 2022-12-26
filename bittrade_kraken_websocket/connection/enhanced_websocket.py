@@ -1,6 +1,6 @@
 from logging import getLogger
 from threading import Lock
-from typing import Optional, Dict
+from typing import Any, Optional, Dict
 
 import orjson
 import websocket
@@ -12,7 +12,7 @@ logger = getLogger(__name__)
 class EnhancedWebsocket():
     socket: websocket.WebSocketApp
     token: str = ''
-    _token_generator: Observable[str]
+    _token_generator: Optional[Observable[str]]
     _lock: Lock
 
     def __init__(self, socket: websocket.WebSocketApp, *, token_generator: Optional[Observable[str]] = None, token=''):
@@ -26,7 +26,7 @@ class EnhancedWebsocket():
     def is_private(self) -> bool:
         return self._token_generator is not None or bool(self.token)
 
-    def send_json(self, payload: Dict):
+    def send_json(self, payload: Dict[str, Any]):
         # private socket always requires token
         if self.is_private and not self.token:
             with self._lock:

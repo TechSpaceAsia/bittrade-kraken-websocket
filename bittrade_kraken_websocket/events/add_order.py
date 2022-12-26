@@ -62,7 +62,7 @@ def map_response_to_order():
     return operators.map(_mapper_event_response_to_order)
 
 def order_related_messages_only(order_id: str):
-    def _order_related_messages_only(source: Observable[List]) -> Observable[Dict]:
+    def _order_related_messages_only(source: Observable[Dict | List]) -> Observable[Dict]:
         def subscribe(observer: ObserverBase, scheduler: Optional[SchedulerBase] = None):
             def on_next(message):
                 try:
@@ -127,7 +127,7 @@ def create_order_lifecycle(x: Tuple[AddOrderRequest, EnhancedWebsocket], message
                 initial_order_received
             )
         )
-        connection.send_json(request)
+        connection.send_json(request)  # type: ignore
         return CompositeDisposable(
             obs.subscribe(observer, scheduler=scheduler),
             recorded_messages.connect()
@@ -142,7 +142,7 @@ def add_order_factory(socket: Observable[EnhancedWebsocket], messages: Observabl
     # Note: for the time being this creates an infinite subscription, at least until socket is completed
     socket.subscribe(connection)
     def add_order(request: AddOrderRequest) -> Observable[Order]:
-        current_connection = connection.value
+        current_connection: EnhancedWebsocket = connection.value # type: ignore
         return create_order_lifecycle((request, current_connection), messages)
 
     return add_order

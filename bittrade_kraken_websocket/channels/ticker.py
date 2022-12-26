@@ -17,3 +17,8 @@ def subscribe_ticker(pair: str, messages: Observable[Dict | List]):
         subscribe_to_channel(messages, ChannelName.CHANNEL_TICKER, pair=pair),
         operators.map(to_ticker_payload),
     )
+
+__all__ = [
+    "TickerPayload",
+    "subscribe_ticker",
+]

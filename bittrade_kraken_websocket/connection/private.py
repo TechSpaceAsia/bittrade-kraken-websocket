@@ -44,6 +44,9 @@ def private_websocket_connection(token_generator: Observable[str], reconnect: bo
         ops.append(retry_with_backoff())
     if shared:
         ops.append(publish())
+    
     return websocket_connection(
         token_generator
+    ).pipe(
+        *ops
     )

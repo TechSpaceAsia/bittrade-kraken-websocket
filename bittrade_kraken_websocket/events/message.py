@@ -1,4 +1,4 @@
-from typing import List, Optional, TypedDict
+from typing import List, TypedDict
 
 from bittrade_kraken_websocket.channels import ChannelName
 from bittrade_kraken_websocket.events import EventName
@@ -14,5 +14,5 @@ class RequestMessage(TypedDict):
 
 class SubscriptionRequestMessage(TypedDict):
     event: EventName
-    pair: Optional[List[str]]
+    pair: List[str]  # will eventually use NotRequired
     subscription: Subscription

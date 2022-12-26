@@ -1,7 +1,9 @@
 import logging
 import time
+import typing
 
 from reactivex.operators import share
+from reactivex.disposable import Disposable
 from rich.logging import RichHandler
 
 from bittrade_kraken_websocket.channels import subscribe_ticker
@@ -28,6 +30,6 @@ socket_connection.pipe(
     subscribe_ticker("LTC/EUR", messages),
 ).subscribe(info_observer('TICKER'))
 
-sub = socket_connection.connect()
+sub = typing.cast(Disposable, socket_connection.connect())
 time.sleep(20)
 sub.dispose()  # because all the subscriptions here are children of the socket connectable observable, everything will get cleaned up and websocket closed

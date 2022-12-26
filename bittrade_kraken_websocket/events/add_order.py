@@ -2,13 +2,15 @@ import dataclasses
 from decimal import Decimal
 from logging import getLogger
 from typing import Dict, List, TypedDict, Optional, Literal, Tuple
+import typing
 
-from reactivex import Observable, operators, Observer
+from reactivex import Observable, operators, throw
 from reactivex.abc import ObserverBase, SchedulerBase
 from reactivex.subject import BehaviorSubject
 from reactivex.disposable import CompositeDisposable
 
 from bittrade_kraken_websocket.connection import EnhancedWebsocket
+from bittrade_kraken_websocket.events.events import EventName
 from bittrade_kraken_websocket.events.models.order import Order, OrderType, OrderSide, OrderStatus, is_final_state
 from bittrade_kraken_websocket.events.request_response import wait_for_response, response_ok
 
@@ -17,7 +19,9 @@ logger = getLogger(__name__)
 class AddOrderError(Exception):
     pass
 
+
 class AddOrderRequest(TypedDict):
+    event: EventName
     ordertype: OrderType
     type: OrderSide
     price: str
@@ -136,13 +140,23 @@ def create_order_lifecycle(x: Tuple[AddOrderRequest, EnhancedWebsocket], message
 
 
 
-def add_order_factory(socket: Observable[EnhancedWebsocket], messages: Observable[Dict | List]):
+def add_order_factory(socket: Observable[EnhancedWebsocket] | BehaviorSubject[Optional[EnhancedWebsocket]], messages: Observable[Dict | List]):
     # Keep track of the latest socket for easier sending
-    connection: BehaviorSubject[Optional[EnhancedWebsocket]] = BehaviorSubject(None)
-    # Note: for the time being this creates an infinite subscription, at least until socket is completed
-    socket.subscribe(connection)
+    connection: BehaviorSubject[Optional[EnhancedWebsocket]]
+    if type(socket) != BehaviorSubject:
+        # Note: for the time being this creates an infinite subscription, at least until socket is completed
+        connection = BehaviorSubject(None)
+        socket.subscribe(connection)
+    else:
+        connection = typing.cast(BehaviorSubject[Optional[EnhancedWebsocket]], socket)
+    
     def add_order(request: AddOrderRequest) -> Observable[Order]:
-        current_connection: EnhancedWebsocket = connection.value # type: ignore
+        if not connection.value:
+            return throw(ValueError('No socket'))
+        current_connection = connection.value
+        if 'event' not in request:
+            request['event'] = EventName.EVENT_ADD_ORDER
+
         return create_order_lifecycle((request, current_connection), messages)
 
     return add_order

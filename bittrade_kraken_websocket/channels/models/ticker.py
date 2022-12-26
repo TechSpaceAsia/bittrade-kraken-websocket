@@ -1,13 +1,13 @@
-from typing import NamedTuple, TypedDict
+from typing import Tuple, TypedDict
 
-Level = NamedTuple('Level', price=str, whole_lot_volume=int, lot_volume=str)
+Level = Tuple[str, int, str] # in this order: price=str, whole_lot_volume=int, lot_volume=str
 
-ShortLevel = NamedTuple('ShortLevel', price=str, lot_volume=str)
+ShortLevel = Tuple[str, str] # price, lot_volume
 
-Volume = NamedTuple('Volume', today=str, last_24_hours=str)
-Order = NamedTuple('Order', today=str, last_24_hours=str)
+Volume = Tuple[str, str] # today, last_24_hours
+Order = Tuple[str, str] # today, last_24_hours
 
-TradeVolume = NamedTuple('TradeVolume', today=int, last_24_hours=int)
+TradeVolume = Tuple[int, int] # today, last_24_hours
 
 
 class TickerPayload(TypedDict):

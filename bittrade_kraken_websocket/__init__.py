@@ -6,6 +6,7 @@ from .connection.reconnect import retry_with_backoff
 from bittrade_kraken_websocket.channels.subscribe import subscribe_to_channel
 from .channels import ChannelName
 from .channels.ticker import *
+from .channels.own_trades import *
 
 __all__ = [
     "ChannelName",

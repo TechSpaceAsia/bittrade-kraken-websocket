@@ -8,6 +8,9 @@ def add_to_set(acc: Set[str], x: List[Dict]):
     return acc
 
 def reduce_order_ids() -> Callable[[Observable[List[Dict]]], Observable[Set[str]]]:
+    """Takes an observable of ownOrders and keeps their ids in a set
+    Useful for ignoring trades that may not be relevant
+    """
     return compose(
         operators.map(private_to_payload),
         operators.scan(

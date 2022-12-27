@@ -18,6 +18,7 @@ def test_keep_order_ids():
         return observable.pipe(reduce_order_ids())
 
     results = scheduler.start(create)
+    # Due to mutability, not testing actual values
     assert len(results.messages) == 2
     assert results.messages[0].time == 210
     assert results.messages[1].time == 240

@@ -105,7 +105,7 @@ def test_order_related_only():
 
 """ALL THE BELOW TESTS WERE TAKEN FROM PREVIOUS ATTEMPTS; NEED TO EDIT THEM"""
 
-def test_add_order_success():
+def _test_add_order_success():
     scheduler = TestScheduler()
     sender = scheduler.create_observer()
     options = AddOrderRequest(
@@ -277,7 +277,7 @@ def test_add_order_success():
     assert m.value['volume'] == '10'
 
 
-def test_add_order_success_dispose():
+def _test_add_order_success_dispose():
     """Dispose before even first order, should stop all subs"""
     scheduler = TestScheduler()
     sender = scheduler.create_observer()
@@ -375,7 +375,7 @@ def test_add_order_success_dispose():
         from_to(200, 280),
     ]
 
-def test_add_order_success_dispose():
+def _test_add_order_success_dispose():
     """Dispose before even first order, should stop all subs"""
     scheduler = TestScheduler()
     sender = scheduler.create_observer()
@@ -474,7 +474,7 @@ def test_add_order_success_dispose():
     ]
 
 
-def test_add_order_failed():
+def _test_add_order_failed():
     """If response to event is a failure, should error"""
     scheduler = TestScheduler()
     sender = scheduler.create_observer()
@@ -499,7 +499,7 @@ def test_add_order_failed():
     ]
 
 
-def test_add_order_timeout_initial():
+def _test_add_order_timeout_initial():
     """If response to event is a failure, should error"""
     scheduler = TestScheduler()
     sender = scheduler.create_observer()
@@ -523,7 +523,7 @@ def test_add_order_timeout_initial():
     assert m.value.kind == 'E'
     assert type(m.value.exception) == TimeoutError
 
-def test_add_order_timeout_details():
+def _test_add_order_timeout_details():
     """If response to event is a failure, should error"""
     scheduler = TestScheduler()
     sender = scheduler.create_observer()

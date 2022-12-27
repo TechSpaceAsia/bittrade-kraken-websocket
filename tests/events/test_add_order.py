@@ -42,8 +42,7 @@ def test_create_order_lifecycle():
         return create_order_lifecycle((request, socket,), messages)
 
     result = scheduler.start(create, created=0.1, subscribed=0.2)
-
-    assert result.messages == [
+    expected = [
         on_next(2, Order(
             order_id='OCI7RW-HMJJ2-WMMJBE',
             status=OrderStatus.submitted,
@@ -51,13 +50,16 @@ def test_create_order_lifecycle():
         on_next(4, Order(
             order_id='OCI7RW-HMJJ2-WMMJBE',
             status=OrderStatus.pending,
-            description='buy 10.00000000 USDTUSD @ limit 0.9980', volume=Decimal('10.00000000'))),
+            price='0.99800000',
+            description='buy 10.00000000 USDTUSD @ limit 0.9980', volume='10.00000000')),
         on_next(6, Order(
             order_id='OCI7RW-HMJJ2-WMMJBE',
             status=OrderStatus.open,
-            description='buy 10.00000000 USDTUSD @ limit 0.9980', volume=Decimal('10.00000000'))),
+            price='0.99800000',
+            description='buy 10.00000000 USDTUSD @ limit 0.9980', volume='10.00000000')),
         on_completed(6)
     ]
+    assert result.messages == expected 
 
     socket.send_json.assert_called_once_with(request)
 

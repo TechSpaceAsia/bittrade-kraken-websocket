@@ -9,7 +9,7 @@ homepage = "https://github.com/TechSpaceAsia/bittrade-kraken-websocket"
 
 [tool.poetry.dependencies]
 python = "^3.10"
-bittrade-kraken-rest = "^0.9.0"
+bittrade-kraken-rest = "^0.10.0"
 reactivex = "^4.0.4"
 websocket-client = "^1.4.2"
 orjson = "^3.8.3"

@@ -95,11 +95,15 @@ def update_order(existing: Order, message: Dict) -> Order:
         'reference': message['userref']
     }
     if 'vol' in message:
-        updates['volume'] = Decimal(message['vol'])
+        updates['volume'] = message['vol']
     if 'vol_exec' in message:
-        updates['volume_executed'] = Decimal(message['vol_exec'])
+        updates['volume_executed'] = message['vol_exec']
     if 'open_tm' in message:
         updates['open_time'] = message['open_tm']
+    details = message.get('descr')
+    if details and type(details) == dict:
+        updates['price'] = message['descr']['price']
+        updates['price2'] = message['descr']['price2']
     # Immutable version
     return dataclasses.replace(existing,
                                **updates

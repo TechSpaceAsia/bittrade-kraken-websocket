@@ -39,6 +39,8 @@ class Order:
     description: str
     reference: int = 0
     open_time: str = ''
-    volume: Decimal = dataclasses.field(default_factory=lambda: Decimal(default_zero))
-    volume_executed: Decimal = dataclasses.field(default_factory=lambda: Decimal(default_zero))
+    price: str = default_zero
+    price2: str = default_zero
+    volume: str = default_zero
+    volume_executed: str = default_zero
 

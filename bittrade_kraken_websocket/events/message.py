@@ -1,7 +1,7 @@
 from typing import List, TypedDict
 
 from bittrade_kraken_websocket.channels import ChannelName
-from bittrade_kraken_websocket.events import EventName
+from .events import EventName
 
 
 class Subscription(TypedDict):

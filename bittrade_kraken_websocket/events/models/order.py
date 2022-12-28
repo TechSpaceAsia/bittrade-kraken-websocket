@@ -1,5 +1,4 @@
 import dataclasses
-from decimal import Decimal
 from enum import Enum
 
 # For sending
@@ -19,18 +18,19 @@ class OrderSide(Enum):
 
 
 class OrderStatus(Enum):
-    canceled  = 'canceled'
-    submitted = 'submitted'
-    pending = 'pending'
-    open = 'open'
-    blank = 'blank'
+    canceled = "canceled"
+    submitted = "submitted"
+    pending = "pending"
+    open = "open"
+    blank = "blank"
 
 
 def is_final_state(status: OrderStatus):
     return status in [OrderStatus.canceled, OrderStatus.open]
 
 
-default_zero = '0.00000000'
+default_zero = "0.00000000"
+
 
 @dataclasses.dataclass
 class Order:
@@ -38,9 +38,16 @@ class Order:
     status: OrderStatus
     description: str
     reference: int = 0
-    open_time: str = ''
+    open_time: str = ""
     price: str = default_zero
     price2: str = default_zero
     volume: str = default_zero
     volume_executed: str = default_zero
 
+
+__all__ = [
+    "Order",
+    "OrderStatus",
+    "OrderType",
+    "OrderSide",
+]

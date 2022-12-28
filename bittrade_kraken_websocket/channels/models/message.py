@@ -1,4 +1,4 @@
-from typing import Dict, List, Tuple, TypedDict, TypeVar, Generic
+from typing import Dict, List, Tuple, TypedDict
 
 
 class PrivateSequence(TypedDict):

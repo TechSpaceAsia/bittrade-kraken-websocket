@@ -6,6 +6,8 @@ from .channels import ChannelName
 from .payload import private_to_payload
 from .subscribe import subscribe_to_channel
 
+from bittrade_kraken_websocket.events import Order, OrderStatus
+
 OrderType = Literal["buy", "sell"]
 
 
@@ -143,6 +145,18 @@ def is_initial_details(message: OpenOrdersPayloadEntry):
     return message.get("status") == "pending"
 
 
+def initial_details_to_order(message: OpenOrdersPayloadEntry, order_id=str) -> "Order":
+    descr = message["descr"]
+    return Order(
+        order_id=order_id,
+        status=OrderStatus.pending,
+        description=descr["order"],
+        price=descr["price"],
+        volume=message["vol"],
+        volume_executed=message["vol_exec"],
+    )
+
+
 def is_close_message(message: OpenOrdersPayloadEntry):
     return message.get("status") == "closed"
 
@@ -164,6 +178,7 @@ __all__ = [
     "subscribe_open_orders",
     "OpenOrdersPayloadEntry",
     "OpenOrdersPayloadEntryDescr",
+    "initial_details_to_order",
     "is_open_message",
     "is_final_message",
     "is_cancel_message",

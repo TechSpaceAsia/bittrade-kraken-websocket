@@ -105,7 +105,11 @@ def subscribe_own_trades(
     """
     subscription_kwargs = subscription_kwargs or {"snapshot": False}
     return compose(
-        subscribe_to_channel(messages, ChannelName.CHANNEL_OWN_TRADES),
+        subscribe_to_channel(
+            messages,
+            ChannelName.CHANNEL_OWN_TRADES,
+            subscription_kwargs=subscription_kwargs,
+        ),
         operators.map(to_own_trades_payload),
     )
 

@@ -1,4 +1,4 @@
-from typing import List, Dict, TypedDict
+from typing import List, Dict, Optional, TypedDict
 
 from reactivex import Observable, compose, operators
 
@@ -93,18 +93,19 @@ def to_own_trades_payload(message: List):
     return private_to_payload(message, OwnTradesPayload)
 
 
-def subscribe_own_trades(messages: Observable[Dict | List], skip_first=True):
+def subscribe_own_trades(
+    messages: Observable[Dict | List], subscription_kwargs: Optional[Dict] = None
+):
     """Subscribe to list of own trades
     By default, we skip the first message each time we have to resubscribe because:
         > On subscription last 50 trades for the user will be sent, followed by new trades.
     However trades don't get updated so this snapshot feels inconsistent with other feeds
 
-    Set skip_first to False to include the initial payload
+    Set your own subscription_kwargs to avoid that behavior
     """
+    subscription_kwargs = subscription_kwargs or {"snapshot": False}
     return compose(
-        subscribe_to_channel(
-            messages, ChannelName.CHANNEL_OWN_TRADES, skip_first=skip_first
-        ),
+        subscribe_to_channel(messages, ChannelName.CHANNEL_OWN_TRADES),
         operators.map(to_own_trades_payload),
     )
 

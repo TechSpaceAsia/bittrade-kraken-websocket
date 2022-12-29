@@ -67,7 +67,6 @@ def subscribe_to_channel(
     *,
     pair: str = "",
     subscription_kwargs: Optional[Dict] = None,
-    skip_first=False
 ):
     is_private = channel in (
         ChannelName.CHANNEL_OWN_TRADES,
@@ -75,8 +74,6 @@ def subscribe_to_channel(
     )
     subscription_keywords: Dict = subscription_kwargs or {}
     messages_operators = []
-    if skip_first:
-        messages_operators.append(operators.skip(1))
     if is_private:
         messages_operators += [in_sequence(), retry_on_invalid_sequence()]
 

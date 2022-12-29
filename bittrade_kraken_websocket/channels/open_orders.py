@@ -2,9 +2,9 @@ from typing import List, Dict, Literal, TypedDict
 
 from reactivex import Observable, compose, operators
 
-from bittrade_kraken_websocket.channels import ChannelName
-from bittrade_kraken_websocket.channels.payload import private_to_payload
-from bittrade_kraken_websocket.channels.subscribe import subscribe_to_channel
+from .channels import ChannelName
+from .payload import private_to_payload
+from .subscribe import subscribe_to_channel
 
 OrderType = Literal["buy", "sell"]
 
@@ -90,9 +90,84 @@ def subscribe_open_orders(messages: Observable[Dict | List]):
     )
 
 
+def is_partial_fill_update(message: OpenOrdersPayloadEntry):
+    """
+    Messages like this mean partial fill of an order
+    {
+        "OKUIN4-EZVJ2-DTQYZV": {
+          "vol_exec": "33.46899999",
+          "cost": "33.45895929",
+          "fee": "0.00000000",
+          "avg_price": "0.99970000",
+          "userref": 0
+        }
+      }
+    """
+    return "status" not in message
+
+
+def is_initial_details(message: OpenOrdersPayloadEntry):
+    """
+    These messages represent initial acknowledgment and details
+    {
+        "OIEAGC-QXXOL-KWFCG4": {
+          "avg_price": "0.00000000",
+          "cost": "0.00000000",
+          "descr": {
+            "close": null,
+            "leverage": null,
+            "order": "sell 295.56960000 USDT/USD @ limit 0.99970000",
+            "ordertype": "limit",
+            "pair": "USDT/USD",
+            "price": "0.99970000",
+            "price2": "0.00000000",
+            "type": "sell"
+          },
+          "expiretm": null,
+          "fee": "0.00000000",
+          "limitprice": "0.00000000",
+          "misc": "",
+          "oflags": "fciq",
+          "opentm": "1672348988.827044",
+          "refid": null,
+          "starttm": null,
+          "status": "pending",
+          "stopprice": "0.00000000",
+          "timeinforce": "GTC",
+          "userref": 0,
+          "vol": "295.56960000",
+          "vol_exec": "0.00000000"
+        }
+      }
+    """
+    return message.get("status") == "pending"
+
+
+def is_close_message(message: OpenOrdersPayloadEntry):
+    return message.get("status") == "closed"
+
+
+def is_cancel_message(message: OpenOrdersPayloadEntry):
+    return message.get("status") == "canceled"
+
+
+def is_final_message(message: OpenOrdersPayloadEntry):
+    return is_close_message(message) or is_cancel_message(message)
+
+
+def is_open_message(message: OpenOrdersPayloadEntry):
+    return message.get("status") == "open"
+
+
 __all__ = [
     "OpenOrdersPayload",
     "subscribe_open_orders",
     "OpenOrdersPayloadEntry",
     "OpenOrdersPayloadEntryDescr",
+    "is_open_message",
+    "is_final_message",
+    "is_cancel_message",
+    "is_close_message",
+    "is_initial_details",
+    "is_partial_fill_update",
 ]

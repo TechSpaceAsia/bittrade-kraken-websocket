@@ -23,6 +23,7 @@ class OrderStatus(Enum):
     pending = "pending"
     open = "open"
     blank = "blank"
+    closed = "closed"
 
 
 def is_final_state(status: OrderStatus):

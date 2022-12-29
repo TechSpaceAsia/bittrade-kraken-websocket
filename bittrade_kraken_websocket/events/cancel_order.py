@@ -31,22 +31,17 @@ class AddOrderError(Exception):
 
 
 @dataclasses.dataclass
-class AddOrderRequest:
-    ordertype: OrderType
-    type: OrderSide
-    price: str
-    volume: str
-    pair: str
-    oflags: str = ""
-    price2: str = ""
+class CancelOrderRequest:
+    txid: List[str]
     reqid: Optional[int] = None
-    event: EventName = EventName.EVENT_ADD_ORDER
+    event: EventName = EventName.EVENT_CANCEL_ORDER
 
 
-class AddOrderResponse(TypedDict):
+class CancelOrderResponse(TypedDict):
     descr: str
     status: Literal["ok", "error"]
     txid: str
+    errorMessage: str
 
 
 def _mapper_event_response_to_order(message: Dict):
@@ -107,60 +102,26 @@ def order_related_messages_only(order_id: str):
     return _order_related_messages_only
 
 
-def update_order(existing: Order, message: Dict) -> Order:
-    updates = {
-        "status": OrderStatus(message["status"]),
-        "reference": message["userref"],
-    }
-    if "vol" in message:
-        updates["volume"] = message["vol"]
-    if "vol_exec" in message:
-        updates["volume_executed"] = message["vol_exec"]
-    if "open_tm" in message:
-        updates["open_time"] = message["open_tm"]
-    details = message.get("descr")
-    if details and type(details) == dict:
-        updates["price"] = message["descr"]["price"]
-        updates["price2"] = message["descr"]["price2"]
-    # Immutable version
-    return dataclasses.replace(existing, **updates)
-
-
-def create_order_lifecycle(
-    x: Tuple[AddOrderRequest, EnhancedWebsocket], messages: Observable[Dict | List]
-) -> Observable[Order]:
+def cancel_order_lifecycle(
+    x: Tuple[CancelOrderRequest, EnhancedWebsocket], messages: Observable[Dict | List]
+) -> Observable[CancelOrderResponse]:
     request, connection = x
 
     def subscribe(observer: ObserverBase, scheduler: Optional[SchedulerBase] = None):
         # To be on the safe side, we start recording messages at this stage; note that there is currently no sign of the websocket sending messages in the wrong order though
         recorded_messages = messages.pipe(operators.replay())
-
-        def initial_order_received(order: Order):
-            order_id = order.order_id
-            observer.on_next(order)
-            return recorded_messages.pipe(
-                order_related_messages_only(order_id),
-                operators.scan(update_order, order),
-                operators.take_while(
-                    lambda o: not is_final_state(o.status), inclusive=True
-                ),
-            )
-
+        sub = recorded_messages.connect()
         obs = messages.pipe(
             wait_for_response(request.reqid, 5.0),
             response_ok(),
-            map_response_to_order(),
-            operators.flat_map(initial_order_received),
         )
         connection.send_json(dataclasses.asdict(request))  # type: ignore
-        return CompositeDisposable(
-            obs.subscribe(observer, scheduler=scheduler), recorded_messages.connect()
-        )
+        return CompositeDisposable(obs.subscribe(observer, scheduler=scheduler), sub)
 
     return Observable(subscribe)
 
 
-def add_order_factory(
+def cancel_order_factory(
     socket: Observable[EnhancedWebsocket]
     | BehaviorSubject[Optional[EnhancedWebsocket]],
     messages: Observable[Dict | List],
@@ -174,18 +135,18 @@ def add_order_factory(
     else:
         connection = typing.cast(BehaviorSubject[Optional[EnhancedWebsocket]], socket)
 
-    def add_order(request: AddOrderRequest) -> Observable[Order]:
+    def cancel_order(request: CancelOrderRequest) -> Observable[Order]:
         if not connection.value:
             return throw(ValueError("No socket"))
         current_connection = connection.value
         if not request.event:
-            request.event = EventName.EVENT_ADD_ORDER
+            request.event = EventName.EVENT_CANCEL_ORDER
         if not request.reqid:
             request.reqid = next(id_iterator)
 
-        return create_order_lifecycle((request, current_connection), messages)
+        return cancel_order_lifecycle((request, current_connection), messages)
 
-    return add_order
+    return cancel_order
 
 
 __all__ = ["AddOrderError", "AddOrderRequest", "AddOrderResponse", "add_order_factory"]

@@ -1,11 +1,15 @@
 from typing import List, TypedDict
 
-from bittrade_kraken_websocket.channels import ChannelName
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from bittrade_kraken_websocket.channels import ChannelName
+
 from .events import EventName
 
 
 class Subscription(TypedDict):
-    name: ChannelName
+    name: "ChannelName"
 
 
 class RequestMessage(TypedDict):

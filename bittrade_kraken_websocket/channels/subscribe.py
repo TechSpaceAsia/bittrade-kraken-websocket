@@ -6,8 +6,8 @@ from reactivex import Observable, operators, compose
 from reactivex.abc import ObserverBase, SchedulerBase
 from reactivex.disposable import CompositeDisposable, Disposable
 
-from bittrade_kraken_websocket.channels import ChannelName
-from bittrade_kraken_websocket.channels.models.message import (
+from .channels import ChannelName
+from .models.message import (
     PrivateMessage,
     PublicMessage,
 )

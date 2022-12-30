@@ -81,7 +81,7 @@ def retry_with_backoff(stabilized: Optional[Observable] = None, delays_pattern: 
                 if delay_by:
                     logger.info('[BACKOFF] Waited for back off; continuing')
                 current_stable_subscription[0] = CompositeDisposable(
-                    stabilized.subscribe(on_completed=reset_delay, scheduler=TimeoutScheduler()),
+                    stabilized.subscribe(on_completed=reset_delay, scheduler=scheduler),
                 )
                 yield source.pipe(
                     operators.do_action(on_completed=complete),

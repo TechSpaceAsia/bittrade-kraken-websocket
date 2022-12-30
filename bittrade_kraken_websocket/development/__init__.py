@@ -32,6 +32,8 @@ def debug_operator(prefix: str):
 def info_observer(prefix: str):
     def fn(x, scope):
         logger.info(f'[{prefix}][{scope}] - {x}')
+        if scope == 'ERROR':
+            traceback.print_exception(*sys.exc_info())
 
     return Observer(
         lambda x: fn(x, 'NEXT'),

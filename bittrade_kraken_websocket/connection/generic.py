@@ -25,7 +25,9 @@ WebsocketBundle = Tuple[EnhancedWebsocket, MessageTypes, Union[Status, Dict, Lis
 
 def websocket_connection(private: bool = False) -> Observable[WebsocketBundle]:
     url = f'wss://ws{"-auth" if private else ""}.kraken.com'
-
+    return raw_websocket_connection(url)
+    
+def raw_websocket_connection(url: str) -> Observable[WebsocketBundle]:
     def subscribe(observer: ObserverBase, _scheduler: Optional[SchedulerBase] = None):
         def on_error(_ws, error):
             logger.error('[SOCKET][RAW] Websocket errored %s', error)
@@ -71,3 +73,7 @@ def websocket_connection(private: bool = False) -> Observable[WebsocketBundle]:
         return reactivex.disposable.Disposable(disconnect)
 
     return Observable(subscribe)
+
+__all__ = [
+    "websocket_connection"
+]

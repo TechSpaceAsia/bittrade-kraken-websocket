@@ -1,10 +1,11 @@
 from collections.abc import Generator
 from logging import getLogger
-from typing import TypeVar, Optional, List
+from typing import Callable, TypeVar, Optional, List
 
 import reactivex
 from reactivex import Observable, operators
 from reactivex.abc import DisposableBase
+from reactivex.scheduler import TimeoutScheduler
 from reactivex.disposable import Disposable, CompositeDisposable
 from reactivex.operators import ignore_elements
 
@@ -12,8 +13,14 @@ _T = TypeVar("_T")
 
 logger = getLogger(__name__)
 
+def kraken_patterns():
+    yield 0.0
+    yield 0.0
+    yield 1.0
+    while True:
+        yield 5.0
 
-def retry_with_backoff(stabilized: Observable = None, delays_pattern: Optional[Generator[float, None, None]] = None):
+def retry_with_backoff(stabilized: Optional[Observable] = None, delays_pattern: Callable[[], Generator[float, None, None]] = kraken_patterns):
     """
     Reconnects to websocket with a backoff time.
     Note that when using this operator, the connection goes into a separate thread, you therefore need to keep the main thread alive
@@ -45,16 +52,8 @@ def retry_with_backoff(stabilized: Observable = None, delays_pattern: Optional[G
     """
     if not stabilized:
         stabilized = reactivex.timer(5.0)  # pragma: no cover
-    if not delays_pattern:
-        def gen():
-            yield 0.0
-            yield 0.0
-            yield 1.0
-            while True:
-                yield 5.0
-
-        delays_pattern = gen
-
+    
+    
     def _retry_reconnect(source: Observable[_T]) -> Observable[_T]:
         # TODO move this to a SerialDisposable or something using switch_latest
         current_stable_subscription: List[DisposableBase] = [Disposable(action=lambda *_: logger.debug('[BACKOFF] Cancelling fake initial sub'))]
@@ -82,7 +81,7 @@ def retry_with_backoff(stabilized: Observable = None, delays_pattern: Optional[G
                 if delay_by:
                     logger.info('[BACKOFF] Waited for back off; continuing')
                 current_stable_subscription[0] = CompositeDisposable(
-                    stabilized.subscribe(on_completed=reset_delay),
+                    stabilized.subscribe(on_completed=reset_delay, scheduler=TimeoutScheduler()),
                 )
                 yield source.pipe(
                     operators.do_action(on_completed=complete),

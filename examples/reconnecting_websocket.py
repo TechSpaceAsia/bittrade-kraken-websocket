@@ -1,19 +1,20 @@
 import functools
 import logging
+import time
+from typing import cast
 
 import reactivex
-from reactivex import operators
-from reactivex.operators import take, publish, do_action, do, concat, skip, flat_map
+from reactivex.abc import DisposableBase
+from reactivex.operators import publish
 from reactivex.scheduler import ThreadPoolScheduler, TimeoutScheduler
-from reactivex.subject import BehaviorSubject
 from rich.logging import RichHandler
 
-from bittrade_kraken_websocket.connection.connection_operators import connected_socket
+from bittrade_kraken_websocket.connection.connection_operators import \
+    connected_socket
+from bittrade_kraken_websocket.connection.generic import \
+    raw_websocket_connection
 from bittrade_kraken_websocket.connection.reconnect import retry_with_backoff
-from bittrade_kraken_websocket.connection.public import public_websocket_connection
-from bittrade_kraken_websocket.connection.generic import websocket_connection
-
-from bittrade_kraken_websocket.development import info_observer, debug_observer
+from bittrade_kraken_websocket.development import (debug_operator,)
 
 console = RichHandler()
 console.setLevel(logging.DEBUG)
@@ -31,12 +32,12 @@ def fac(scheduler):
         stable_duration = 5.0 # The first 6 times the error will occur faster than stabilization; you will see backoff
     else:
         stable_duration = 2.0 # Stable will trigger so no more backoff
-    return reactivex.interval(stable_duration)
+    return reactivex.timer(stable_duration)
 stable = reactivex.defer(fac)
 
 # Binance errors when we send gibberish unlike Kraken
-connection = websocket_connection('wss://testnet.binance.vision/ws').pipe(
-    do(debug_observer('ERRORS WILL SHOW HERE')),
+connection = raw_websocket_connection('wss://testnet.binance.vision/ws').pipe(
+    debug_operator('ERRORS WILL SHOW HERE'),
     retry_with_backoff(stable),
     publish()
 )
@@ -46,14 +47,11 @@ def send_gibberish(m):
     timeout_scheduler.schedule_relative(3.0, lambda *args: m.socket.send('gibberish'))
 
 connection.pipe(
-    connected_socket(),
+    connected_socket(),  # this operator limits the emission to newly opened sockets
 ).subscribe(on_next=send_gibberish)
 
 pool_scheduler = ThreadPoolScheduler()
-sub = connection.connect(scheduler=pool_scheduler)
+sub = cast(DisposableBase, connection.connect(scheduler=pool_scheduler))
 
-timeout_scheduler.schedule_relative(120, lambda: sub.dispose())
-
-# Since we're not doing anything, websocket will eventually error
-while True:
-    pass
+time.sleep(120)
+sub.dispose()

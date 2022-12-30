@@ -15,7 +15,7 @@ from bittrade_kraken_websocket.operators import (filter_new_socket_only,
                                                  keep_messages_only)
 
 console = RichHandler()
-console.setLevel(logging.DEBUG)  # <- if you wish to see subscribe/unsubscribe and raw messages, change to DEBUG
+console.setLevel(logging.INFO)  # <- if you wish to see subscribe/unsubscribe and raw messages, change to DEBUG
 logger = logging.getLogger(
     'bittrade_kraken_websocket'
 )

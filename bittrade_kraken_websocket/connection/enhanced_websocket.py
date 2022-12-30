@@ -29,3 +29,8 @@ class EnhancedWebsocket():
         as_bytes = orjson.dumps(payload)
         logger.debug('[SOCKET] Sending json to socket: %s', as_bytes)
         return self.socket.send(as_bytes)
+
+
+__all__ = [
+    "EnhancedWebsocket"
+]

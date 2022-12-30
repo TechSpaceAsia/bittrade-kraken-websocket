@@ -1,8 +1,7 @@
 import logging
 import signal
 
-import reactivex
-from reactivex.operators import publish, share, take
+from reactivex import operators
 from reactivex.scheduler import ThreadPoolScheduler, TimeoutScheduler
 from rich.logging import RichHandler
 
@@ -15,6 +14,7 @@ from bittrade_kraken_websocket.connection import (
 from bittrade_kraken_rest import get_websockets_token
 from pathlib import Path
 import urllib, hmac, base64, hashlib
+from bittrade_kraken_websocket import EnhancedWebsocket
 
 from bittrade_kraken_websocket.development import info_observer
 from bittrade_kraken_websocket.channels.subscribe import subscribe_to_channel
@@ -43,7 +43,7 @@ def generate_kraken_signature(urlpath, data, secret):
     return signature_digest.decode()
 
 
-def get_token():
+def get_token() -> str:
     with get_websockets_token() as prep:
         prep.headers["API-Key"] = Path(
             "./config_local/key"
@@ -53,29 +53,33 @@ def get_token():
         )
     return prep.response.get_result().token
 
+def add_token(socket: EnhancedWebsocket):
+    token = get_token()
+    socket.token = token
+    return socket
 
 ##### END Write your own for security reasons ####
 
-# Transform the above function into an observable
-token_generator = reactivex.from_callable(get_token)
-
-connection = private_websocket_connection(token_generator, reconnect=True)
+connection = private_websocket_connection(reconnect=True)
 # Uncomment this to see the status of the socket being emitted
 # connection.pipe(
 #     keep_status_only()
 # ).subscribe(info_observer('Socket status'))
-all_messages = connection.pipe(keep_messages_only(), share())
-new_sockets = connection.pipe(filter_new_socket_only(), share())
+all_messages = connection.pipe(keep_messages_only(), operators.share())
+new_sockets = connection.pipe(
+    filter_new_socket_only(),
+    operators.map(add_token),
+    operators.share(),
+)
 
 # Uncomment this to see the socket reconnect in action (probably no backoff since kraken isn't actually disconnecting), followed by the re-subscription to the channels
-# def force_close(socket: EnhancedWebsocket):
-#     def close_me(*args):
-#         socket.socket.close(status=1008)
-#     timeout_scheduler.schedule_relative(10, close_me)
-# connection.pipe(
-#     map_socket_only(),
-#     operators.do_action(on_next=force_close)
-# ).subscribe()
+def force_close(socket: EnhancedWebsocket):
+    def close_me(*args):
+        socket.socket.close(status=1008)
+    timeout_scheduler.schedule_relative(10, close_me)
+new_sockets.pipe(
+    operators.do_action(on_next=force_close)
+).subscribe()
 
 
 open_orders = new_sockets.pipe(subscribe_open_orders(all_messages))

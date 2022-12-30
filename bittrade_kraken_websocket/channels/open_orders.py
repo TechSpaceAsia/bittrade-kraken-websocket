@@ -145,7 +145,7 @@ def is_initial_details(message: OpenOrdersPayloadEntry):
     return message.get("status") == "pending"
 
 
-def initial_details_to_order(message: OpenOrdersPayloadEntry, order_id=str) -> "Order":
+def initial_details_to_order(message: OpenOrdersPayloadEntry, order_id=str) -> Order:
     descr = message["descr"]
     return Order(
         order_id=order_id,

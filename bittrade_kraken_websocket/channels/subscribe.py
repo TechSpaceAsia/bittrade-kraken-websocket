@@ -1,5 +1,5 @@
 from logging import getLogger
-from typing import Dict, List, Optional
+from typing import Callable, Dict, List, Optional
 import typing
 
 from reactivex import Observable, operators, compose
@@ -26,18 +26,18 @@ def channel_subscription(
     socket: EnhancedWebsocket,
     channel: ChannelName,
     pair: str = "",
-    subscription_kwargs: Dict = None,
+    subscription_kwargs: Optional[Dict[str, str]] = None,
 ):
     subscription_message: SubscriptionRequestMessage = {
         "event": EventName.EVENT_SUBSCRIBE,
-        "subscription": {"name": channel},
-    }  # type: ignore  We have to because NotRequired is currently not available to "pair" is always required
+        "subscription": {"name": channel.value},
+    }  # type: ignore  We have to ignore because NotRequired (a feature of TypedDict) is currently not available so "pair" is always required
     if pair:
         subscription_message["pair"] = [pair]
     if subscription_kwargs:
         subscription_message["subscription"].update(subscription_kwargs)
 
-    unsubscription_message: SubscriptionRequestMessage = dict(subscription_message)
+    unsubscription_message = dict(subscription_message)
     unsubscription_message["event"] = EventName.EVENT_UNSUBSCRIBE
 
     def on_enter():
@@ -67,7 +67,7 @@ def subscribe_to_channel(
     *,
     pair: str = "",
     subscription_kwargs: Optional[Dict] = None,
-):
+) -> Callable[[Observable[EnhancedWebsocket]], Observable[PublicMessage | PrivateMessage]]:
     is_private = channel in (
         ChannelName.CHANNEL_OWN_TRADES,
         ChannelName.CHANNEL_OPEN_ORDERS,

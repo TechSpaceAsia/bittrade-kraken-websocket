@@ -12,25 +12,16 @@ logger = getLogger(__name__)
 class EnhancedWebsocket():
     socket: websocket.WebSocketApp
     token: str = ''
-    _token_generator: Optional[Observable[str]]
-    _lock: Lock
 
-    def __init__(self, socket: websocket.WebSocketApp, *, token_generator: Optional[Observable[str]] = None, token=''):
-        # Note that the token_generator will not be used if token is passed
+    def __init__(self, socket: websocket.WebSocketApp, *, token=''):
         self.socket = socket
-        self._token_generator = token_generator
-        self._lock = Lock()
         self.token = token
 
     @property
     def is_private(self) -> bool:
-        return self._token_generator is not None or bool(self.token)
+        return bool(self.token)
 
     def send_json(self, payload: Dict[str, Any]):
-        # private socket always requires token
-        if self.is_private and not self.token:
-            with self._lock:
-                self.token = self._token_generator.run()
         if self.is_private:
             # if subscription, token goes into that, otherwise goes to top level
             put_token_into = payload.get('subscription', payload)

@@ -6,6 +6,9 @@ from reactivex.operators import publish
 from .reconnect import retry_with_backoff
 from bittrade_kraken_websocket.connection.generic import websocket_connection, WebsocketBundle
 
+@overload
+def public_websocket_connection() -> ConnectableObservable[WebsocketBundle]:
+    ...
 
 @overload
 def public_websocket_connection(reconnect: bool) -> ConnectableObservable[WebsocketBundle]:

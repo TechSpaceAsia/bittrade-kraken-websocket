@@ -45,5 +45,5 @@ def info_operator(prefix: str):
 
 
 class LogOnDisposeDisposable(CompositeDisposable):
-    def __init__(self, *args: List[DisposableBase], message: str = ''):
-        super().__init__(*args, Disposable(action=lambda: logger.info('DISPOSING %s', message)))
+    def __init__(self, disposables: List[DisposableBase], message: str = ''):
+        super().__init__(*disposables, Disposable(action=lambda: logger.info('DISPOSING %s', message)))

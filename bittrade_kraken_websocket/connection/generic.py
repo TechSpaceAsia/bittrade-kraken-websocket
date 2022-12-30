@@ -18,14 +18,13 @@ logger = getLogger(__name__)
 WEBSOCKET_STATUS = 'WEBSOCKET_STATUS'
 WEBSOCKET_HEARTBEAT = 'WEBSOCKET_HEARTBEAT'
 WEBSOCKET_MESSAGE = 'WEBSOCKET_MESSAGE'
-MessageTypes = Literal[WEBSOCKET_STATUS, WEBSOCKET_HEARTBEAT, WEBSOCKET_MESSAGE]
+MessageTypes = Literal['WEBSOCKET_STATUS', 'WEBSOCKET_HEARTBEAT', 'WEBSOCKET_MESSAGE']
 
 WebsocketBundle = Tuple[EnhancedWebsocket, MessageTypes, Union[Status, Dict, List]]
 
 
-def websocket_connection(token_generator: Optional[Observable[str]] = None) -> Observable[WebsocketBundle]:
-    is_private = token_generator is not None
-    url = f'wss://ws{"-auth" if is_private else ""}.kraken.com'
+def websocket_connection(private: bool = False) -> Observable[WebsocketBundle]:
+    url = f'wss://ws{"-auth" if private else ""}.kraken.com'
 
     def subscribe(observer: ObserverBase, _scheduler: Optional[SchedulerBase] = None):
         def on_error(_ws, error):
@@ -57,7 +56,7 @@ def websocket_connection(token_generator: Optional[Observable[str]] = None) -> O
         connection = WebSocketApp(
             url, on_open=on_open, on_close=on_close, on_error=on_error, on_message=on_message
         )
-        enhanced = EnhancedWebsocket(connection, token_generator=token_generator)
+        enhanced = EnhancedWebsocket(connection)
         executor = ThreadPoolExecutor(thread_name_prefix='WebsocketPool')
         executor.submit(connection.run_forever)
         executor.shutdown(wait=False)

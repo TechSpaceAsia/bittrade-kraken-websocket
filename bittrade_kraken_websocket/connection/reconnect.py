@@ -13,6 +13,7 @@ _T = TypeVar("_T")
 
 logger = getLogger(__name__)
 
+
 def kraken_patterns():
     yield 0.0
     yield 0.0
@@ -20,7 +21,11 @@ def kraken_patterns():
     while True:
         yield 5.0
 
-def retry_with_backoff(stabilized: Optional[Observable] = None, delays_pattern: Callable[[], Generator[float, None, None]] = kraken_patterns):
+
+def retry_with_backoff(
+    stabilized: Optional[Observable] = None,
+    delays_pattern: Callable[[], Generator[float, None, None]] = kraken_patterns,
+):
     """
     Reconnects to websocket with a backoff time.
     Note that when using this operator, the connection goes into a separate thread, you therefore need to keep the main thread alive
@@ -52,11 +57,14 @@ def retry_with_backoff(stabilized: Optional[Observable] = None, delays_pattern: 
     """
     if not stabilized:
         stabilized = reactivex.timer(5.0)  # pragma: no cover
-    
-    
+
     def _retry_reconnect(source: Observable[_T]) -> Observable[_T]:
         # TODO move this to a SerialDisposable or something using switch_latest
-        current_stable_subscription: List[DisposableBase] = [Disposable(action=lambda *_: logger.debug('[BACKOFF] Cancelling fake initial sub'))]
+        current_stable_subscription: List[DisposableBase] = [
+            Disposable(
+                action=lambda *_: logger.debug("[BACKOFF] Cancelling fake initial sub")
+            )
+        ]
         _is_first = True
 
         def delay_generator(scheduler):
@@ -74,14 +82,12 @@ def retry_with_backoff(stabilized: Optional[Observable] = None, delays_pattern: 
                 if _is_first:
                     _is_first = False
                 else:
-                    logger.info('[BACKOFF] Back off delay is %s', delay_by)
-                yield reactivex.timer(delay_by).pipe(
-                    ignore_elements()
-                )
+                    logger.info("[BACKOFF] Back off delay is %s", delay_by)
+                yield reactivex.timer(delay_by).pipe(ignore_elements())
                 if delay_by:
-                    logger.info('[BACKOFF] Waited for back off; continuing')
+                    logger.info("[BACKOFF] Waited for back off; continuing")
                 current_stable_subscription[0] = CompositeDisposable(
-                    stabilized.subscribe(on_completed=reset_delay, scheduler=scheduler),
+                    stabilized.subscribe(on_completed=reset_delay),
                 )
                 yield source.pipe(
                     operators.do_action(on_completed=complete),
@@ -91,19 +97,17 @@ def retry_with_backoff(stabilized: Optional[Observable] = None, delays_pattern: 
         delays = [delays_pattern()]
 
         def reset_delay(*_):
-            logger.info('[BACKOFF] Source stabilized; delays have been reset')
+            logger.info("[BACKOFF] Source stabilized; delays have been reset")
             try:
                 delays[0] = delays_pattern()
             except Exception as exc:
-                logger.error('[BACKOFF] Failed to reset delays', exc)
+                logger.error("[BACKOFF] Failed to reset delays", exc)
 
         def deferred_action(scheduler):
             return reactivex.concat_with_iterable(
                 obs for obs in delay_generator(scheduler)
             )
 
-        return reactivex.defer(
-            deferred_action
-        )
+        return reactivex.defer(deferred_action)
 
     return _retry_reconnect

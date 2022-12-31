@@ -41,6 +41,7 @@ class AddOrderRequest:
     price2: str = ""
     reqid: Optional[int] = None
     event: EventName = EventName.EVENT_ADD_ORDER
+    userref: str = "1"
 
 
 class AddOrderResponse(TypedDict):

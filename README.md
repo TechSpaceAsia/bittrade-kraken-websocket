@@ -60,3 +60,20 @@ You can modify what logs you see as follows:
 ```
 logging.getLogger('bittrade_kraken_websocket').addHandler(logging.StreamHandler())
 ```
+
+## Private feeds
+
+Similar to [bittrade-kraken-rest](https://github.com/TechSpaceAsia/bittrade-kraken-rest), this library attempts to get as little access to sensitive information as possible.
+
+Currently, you need to set the token onto the `EnhancedWebsocket`; this means we have no access to your Api key and secret.
+Since the token is connection based and can't be reused, this protects you as much as Kraken's current authentication method allows.
+
+See `examples/private_subscription.py` for an example of implementation
+
+```python
+new_sockets = connection.pipe(
+    filter_new_socket_only(),
+    operators.map(add_token),
+    operators.share(),
+)
+```

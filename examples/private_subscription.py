@@ -73,13 +73,13 @@ new_sockets = connection.pipe(
 )
 
 # Uncomment this to see the socket reconnect in action (probably no backoff since kraken isn't actually disconnecting), followed by the re-subscription to the channels
-def force_close(socket: EnhancedWebsocket):
-    def close_me(*args):
-        socket.socket.close(status=1008)
-    timeout_scheduler.schedule_relative(10, close_me)
-new_sockets.pipe(
-    operators.do_action(on_next=force_close)
-).subscribe()
+# def force_close(socket: EnhancedWebsocket):
+#     def close_me(*args):
+#         socket.socket.close(status=1008)
+#     timeout_scheduler.schedule_relative(10, close_me)
+# new_sockets.pipe(
+#     operators.do_action(on_next=force_close)
+# ).subscribe()
 
 
 open_orders = new_sockets.pipe(subscribe_open_orders(all_messages))
@@ -104,13 +104,11 @@ open_orders.subscribe(info_observer("[OPEN ORDERS]"))
 # open_orders.subscribe(info_observer('[MESSED UP ORDERS]'))
 
 
-# Uncomment this to see additional socket connection in action
-own_trades = new_sockets.pipe(subscribe_own_trades(all_messages))
-own_trades.subscribe(info_observer("[OWN TRADES]"))
+# Uncomment this to see additional private feed subscription in action
+# own_trades = new_sockets.pipe(subscribe_own_trades(all_messages))
+# own_trades.subscribe(info_observer("[OWN TRADES]"))
 
-pool_scheduler = ThreadPoolScheduler()
-
-sub = connection.connect(pool_scheduler)
+sub = connection.connect()
 
 ongoing = True
 
@@ -124,7 +122,8 @@ def stop(*args):
 signal.signal(signal.SIGINT, stop)
 
 # Uncomment this to stop the socket after 1 minute
-# reactivex.interval(600).pipe(take(1)).subscribe(on_next=stop)
+# time.sleep(60)
+# stop()
 
 while ongoing:
     pass

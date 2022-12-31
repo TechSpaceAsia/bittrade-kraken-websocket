@@ -1,7 +1,8 @@
 from logging import getLogger
-from typing import overload, Literal
+from typing import Optional, overload, Literal
 
 from reactivex import Observable, ConnectableObservable
+from reactivex.abc import SchedulerBase
 from reactivex.operators import publish
 
 from bittrade_kraken_websocket.connection.generic import websocket_connection, WebsocketBundle
@@ -14,29 +15,37 @@ logger = getLogger(__name__)
 def private_websocket_connection() -> ConnectableObservable[WebsocketBundle]:
     ...
 
+@overload
+def private_websocket_connection(*, scheduler: Optional[SchedulerBase]) -> ConnectableObservable[WebsocketBundle]:
+    ...
+
+@overload
+def private_websocket_connection(*, reconnect: bool) -> ConnectableObservable[WebsocketBundle]:
+    ...
+
 
 @overload
 def private_websocket_connection(
-        reconnect: bool
+        *, reconnect: bool, scheduler: Optional[SchedulerBase]
 ) -> ConnectableObservable[WebsocketBundle]:
     ...
 
 
 @overload
 def private_websocket_connection(
-        reconnect: bool, shared: Literal[True]
+        *, reconnect: bool, shared: Literal[True], scheduler: Optional[SchedulerBase]
 ) -> ConnectableObservable[WebsocketBundle]:
     ...
 
 
 @overload
-def private_websocket_connection(
-        reconnect: bool, shared: Literal[False]
+def private_websocket_connection(*,
+        reconnect: bool, shared: Literal[False], scheduler: Optional[SchedulerBase]
 ) -> Observable[WebsocketBundle]:
     ...
 
 
-def private_websocket_connection(reconnect: bool = False, shared: bool = True):
+def private_websocket_connection(*, reconnect: bool = False, shared: bool = True, scheduler: Optional[SchedulerBase] = None):
     """Token generator is an observable which is expected to emit a single item upon subscription then complete.
     An example implementation can be found in `examples/private_subscription.py`"""
     ops = []
@@ -46,7 +55,7 @@ def private_websocket_connection(reconnect: bool = False, shared: bool = True):
         ops.append(publish())
     
     return websocket_connection(
-        private=True
+        private=True, scheduler=scheduler
     ).pipe(
         *ops
     )

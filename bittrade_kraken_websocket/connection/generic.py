@@ -6,6 +6,7 @@ import orjson
 import reactivex.disposable
 from reactivex import Observable
 from reactivex.abc import SchedulerBase, ObserverBase
+from reactivex.scheduler import ThreadPoolScheduler
 from websocket import WebSocketConnectionClosedException, WebSocketApp
 
 from bittrade_kraken_websocket.connection.enhanced_websocket import EnhancedWebsocket
@@ -27,69 +28,78 @@ MessageTypes = Literal["WEBSOCKET_STATUS", "WEBSOCKET_HEARTBEAT", "WEBSOCKET_MES
 WebsocketBundle = Tuple[EnhancedWebsocket, MessageTypes, Union[Status, Dict, List]]
 
 
-def websocket_connection(private: bool = False) -> Observable[WebsocketBundle]:
+def websocket_connection(private: bool = False, scheduler: Optional[SchedulerBase] = None) -> Observable[WebsocketBundle]:
     url = f'wss://ws{"-auth" if private else ""}.kraken.com'
-    return raw_websocket_connection(url)
+    return raw_websocket_connection(url, scheduler=scheduler)
 
 
-def raw_websocket_connection(url: str) -> Observable[WebsocketBundle]:
-    def subscribe(observer: ObserverBase, scheduler: Optional[SchedulerBase] = None):
-        def on_error(_ws, error):
-            logger.error("[SOCKET][RAW] Websocket errored %s", error)
-            observer.on_next((enhanced, WEBSOCKET_STATUS, WEBSOCKET_CLOSED))
-            observer.on_error(error)
+def raw_websocket_connection(url: str, scheduler: Optional[SchedulerBase] = None) -> Observable[WebsocketBundle]:
+    def subscribe(observer: ObserverBase, scheduler_: Optional[SchedulerBase] = None):
+        _scheduler = scheduler or scheduler_ or ThreadPoolScheduler()
+        connection: WebSocketApp | None = None
+        def action(*args):
+            nonlocal connection
+            def on_error(_ws, error):
+                logger.error("[SOCKET][RAW] Websocket errored %s", error)
+                observer.on_next((enhanced, WEBSOCKET_STATUS, WEBSOCKET_CLOSED))
+                observer.on_error(error)
 
-        def on_close(_ws, close_status_code, close_msg):
-            logger.warning(
-                "[SOCKET][RAW] Websocket closed | status: %s, close message: %s",
-                close_status_code,
-                close_msg,
+            def on_close(_ws, close_status_code, close_msg):
+                logger.warning(
+                    "[SOCKET][RAW] Websocket closed | status: %s, close message: %s",
+                    close_status_code,
+                    close_msg,
+                )
+                observer.on_next((enhanced, WEBSOCKET_STATUS, WEBSOCKET_CLOSED))
+                observer.on_error(Exception("Socket closed"))
+
+            def on_open(_ws):
+                logger.info("[SOCKET][RAW] Websocket opened")
+                observer.on_next((enhanced, WEBSOCKET_STATUS, WEBSOCKET_OPENED))
+
+            def on_message(_ws, message):
+                pass_message = orjson.loads(message)
+                category = WEBSOCKET_MESSAGE
+                if message == HEARTBEAT:
+                    category = WEBSOCKET_HEARTBEAT
+                else:
+                    logger.debug("[SOCKET][RAW] %s", message)
+                    if (
+                        type(pass_message) == dict
+                        and pass_message.get("event") == "systemStatus"
+                    ):
+                        category = WEBSOCKET_STATUS
+                        pass_message = pass_message["status"]
+                try:
+                    observer.on_next((enhanced, category, pass_message))
+                except:
+                    logger.exception("[SOCKET] Error on socket message")
+
+            connection = WebSocketApp(
+                url,
+                on_open=on_open,
+                on_close=on_close,
+                on_error=on_error,
+                on_message=on_message,
             )
-            observer.on_next((enhanced, WEBSOCKET_STATUS, WEBSOCKET_CLOSED))
-            observer.on_error(Exception("Socket closed"))
-
-        def on_open(_ws):
-            logger.info("[SOCKET][RAW] Websocket opened")
-            observer.on_next((enhanced, WEBSOCKET_STATUS, WEBSOCKET_OPENED))
-
-        def on_message(_ws, message):
-            pass_message = orjson.loads(message)
-            category = WEBSOCKET_MESSAGE
-            if message == HEARTBEAT:
-                category = WEBSOCKET_HEARTBEAT
-            else:
-                logger.debug("[SOCKET][RAW] %s", message)
-                if (
-                    type(pass_message) == dict
-                    and pass_message.get("event") == "systemStatus"
-                ):
-                    category = WEBSOCKET_STATUS
-                    pass_message = pass_message["status"]
-            try:
-                observer.on_next((enhanced, category, pass_message))
-            except:
-                logger.exception("[SOCKET] Error on socket message")
-
-        connection = WebSocketApp(
-            url,
-            on_open=on_open,
-            on_close=on_close,
-            on_error=on_error,
-            on_message=on_message,
-        )
-        enhanced = EnhancedWebsocket(connection)
-        executor = ThreadPoolExecutor(thread_name_prefix="WebsocketPool")
-        executor.submit(connection.run_forever)
-        executor.shutdown(wait=False)
+            enhanced = EnhancedWebsocket(connection)
+            def run_forever(*args):
+                assert connection is not None
+                connection.run_forever()
+            _scheduler.schedule(run_forever)
 
         def disconnect():
             logger.info("[SOCKET] Releasing resources")
+            assert connection is not None
             try:
                 connection.close()
             except WebSocketConnectionClosedException as exc:
                 logger.error("[SOCKET] Socket was already closed %s", exc)
-
-        return reactivex.disposable.Disposable(disconnect)
+        
+        return reactivex.disposable.CompositeDisposable(
+            _scheduler.schedule(action),
+            reactivex.disposable.Disposable(disconnect)
+        )
 
     return Observable(subscribe)
 

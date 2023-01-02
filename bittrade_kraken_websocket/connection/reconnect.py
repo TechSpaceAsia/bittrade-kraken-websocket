@@ -37,7 +37,7 @@ def retry_with_backoff(
             Use an infinite generator for infinite repeats. Below are a few examples of backoff patterns
 
     Examples of delay generators:
-    # kraken's documentation suggested pattern
+    ### kraken's documentation suggested pattern
     def delays_pattern():
         yield 0.0
         yield 0.0

@@ -34,5 +34,5 @@ socket_connection.pipe(
     filter_new_socket_only(),
     subscribe_ticker('USDT/USD', messages)
 ).subscribe(debug_observer('TICKER'))
-sub = cast(DisposableBase, socket_connection.connect())
+socket_connection.connect()
 print('You ll see me immediately if not overriding scheduler')

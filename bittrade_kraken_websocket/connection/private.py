@@ -59,3 +59,7 @@ def private_websocket_connection(*, reconnect: bool = False, shared: bool = True
     ).pipe(
         *ops
     )
+
+__all__ = [
+    "private_websocket_connection",
+]

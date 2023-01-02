@@ -111,3 +111,9 @@ def retry_with_backoff(
         return reactivex.defer(deferred_action)
 
     return _retry_reconnect
+
+
+__all__ = [
+    "retry_with_backoff",
+    "kraken_patterns",
+]

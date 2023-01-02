@@ -51,9 +51,10 @@ to_be_disposed = LogOnDisposeDisposable(
 )
 
 # Ready, start connecting and subscribing to channels
-sub = cast(DisposableBase, socket_connection.connect())
+sub = socket_connection.connect()
 
 time.sleep(10)
 to_be_disposed.dispose() # the "messages" will now show only "ticker", no more "spread"
 time.sleep(20)
+assert sub is not None
 sub.dispose() # because all the subscriptions here are children of the socket connectable observable, everything will get cleaned up and websocket closed

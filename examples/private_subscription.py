@@ -13,11 +13,11 @@ from bittrade_kraken_websocket.connection import (
 )
 from bittrade_kraken_rest import get_websockets_token
 from pathlib import Path
-import urllib, hmac, base64, hashlib
+import hmac, base64, hashlib
+from urllib import parse
 from bittrade_kraken_websocket import EnhancedWebsocket
 
 from bittrade_kraken_websocket.development import info_observer
-from bittrade_kraken_websocket.channels.subscribe import subscribe_to_channel
 from bittrade_kraken_websocket.messages.listen import (
     keep_messages_only,
     filter_new_socket_only,
@@ -35,7 +35,7 @@ timeout_scheduler = TimeoutScheduler()
 # Code taken (with a minor change on non_null_data) from https://docs.kraken.com/rest/#section/Authentication/Headers-and-Signature
 def generate_kraken_signature(urlpath, data, secret):
     non_null_data = {k: v for k, v in data.items() if v is not None}
-    post_data = urllib.parse.urlencode(non_null_data)
+    post_data = parse.urlencode(non_null_data)
     encoded = (str(data["nonce"]) + post_data).encode()
     message = urlpath.encode() + hashlib.sha256(encoded).digest()
     mac = hmac.new(base64.b64decode(secret), message, hashlib.sha512)
@@ -85,7 +85,8 @@ new_sockets = connection.pipe(
 open_orders = new_sockets.pipe(subscribe_open_orders(all_messages))
 open_orders.subscribe(info_observer("[OPEN ORDERS]"))
 
-# Uncomment this, (and comment out the original open_orders above) to see a fake sequence problem in subscription and the subsequent unsub/sub; you'll also need to place an order which should result in a sequence 3 at least - or you can change the code below to == 1
+# Uncomment this, (and comment out the original open_orders above) to see a fake sequence problem in subscription and the subsequent unsub/sub; 
+# you'll also need to place an order which should result in a sequence 3 at least - or you can change the code below to x[2]['sequence'] == 1
 # def mess_up_sequence(x):
 #     try:
 #         if x[2]['sequence'] == 3:
@@ -95,11 +96,11 @@ open_orders.subscribe(info_observer("[OPEN ORDERS]"))
 #     return x
 #
 # open_orders = new_sockets.pipe(
-#     subscribe_to_private_channel(
+#     subscribe_open_orders(
 #         all_messages.pipe(
 #             operators.map(mess_up_sequence)
 #         )
-#     , CHANNEL_OPEN_ORDERS)
+#     )
 # )
 # open_orders.subscribe(info_observer('[MESSED UP ORDERS]'))
 
@@ -116,6 +117,7 @@ ongoing = True
 def stop(*args):
     global ongoing
     ongoing = False
+    assert sub is not None
     sub.dispose()
 
 

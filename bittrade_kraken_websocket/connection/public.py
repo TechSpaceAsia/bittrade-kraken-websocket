@@ -43,3 +43,8 @@ def public_websocket_connection(*, reconnect: bool = False, shared: bool = True,
     return websocket_connection(scheduler=scheduler).pipe(
         *ops
     )
+
+
+__all__ = [
+    "public_websocket_connection",
+]

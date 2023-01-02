@@ -4,9 +4,9 @@
 
 - Reconnect with incremental backoff (per Kraken's recommendation)
 - Automatically reset subscription for private feeds when sequence is out of whack
-- request/response factories e.g. `addOrder` make websocket events feel like calling an API
+- request/response factories e.g. `add_order_factory` make websocket events feel like calling an API
 - ... but provides more info than a simple request/response; 
-  for instance, `addOrder` goes through each stage submitted->pending->open or canceled, 
+  for instance, `add_o_rder` goes through each stage submitted->pending->open or canceled, 
   emitting a notification at each stage
 
 ## Installing
@@ -38,7 +38,7 @@ from bittrade_kraken_websocket.operators import keep_messages_only, filter_new_s
 
 # Prepare connection - note, this is a ConnectableObservable, so it will only trigger connection when we call its ``connect`` method
 socket_connection = public_websocket_connection()
-# Prepare a feed with only "real" messages, dropping status update, heartbeat etc
+# Prepare a feed with only "real" messages, dropping things like status update, heartbeat, etc…
 messages = socket_connection.pipe(
     keep_messages_only(),
 )
@@ -46,10 +46,12 @@ socket_connection.pipe(
     filter_new_socket_only(),
     subscribe_ticker('USDT/USD', messages)
 ).subscribe(
-    print, print, print  # you can do anything with the messages; this prints them out
+    print, print, print  # you can do anything with the messages; here we simply print them out
 )
 socket_connection.connect()
 ```
+
+_(This script is complete, it should run "as is")_
 
 
 ## Logging
@@ -67,6 +69,8 @@ Similar to [bittrade-kraken-rest](https://github.com/TechSpaceAsia/bittrade-krak
 
 Currently, you need to set the token onto the `EnhancedWebsocket`; this means we have no access to your Api key and secret.
 Since the token is connection based and can't be reused, this protects you as much as Kraken's current authentication method allows.
+
+In the future we might even ask you to code your own `send_json` method instead.
 
 See `examples/private_subscription.py` for an example of implementation
 

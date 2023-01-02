@@ -14,14 +14,14 @@ console = Console()
 
 def debug_observer(prefix: str) -> Observer[Any]:
     def fn(x, scope):
-        logger.debug(f'[{prefix}][{scope}] - {x}')
-        if scope == 'ERROR':
+        logger.debug(f"[{prefix}][{scope}] - {x}")
+        if scope == "ERROR":
             traceback.print_exception(*sys.exc_info())
 
     return Observer(
-        lambda x: fn(x, 'NEXT'),
-        lambda x: fn(x, 'ERROR') and console.print_exception(),
-        lambda: fn('No message on completion', 'COMPLETE'),
+        lambda x: fn(x, "NEXT"),
+        lambda x: fn(x, "ERROR") and console.print_exception(),
+        lambda: fn("No message on completion", "COMPLETE"),
     )
 
 
@@ -31,14 +31,14 @@ def debug_operator(prefix: str):
 
 def info_observer(prefix: str) -> Observer[Any]:
     def fn(x, scope):
-        logger.info(f'[{prefix}][{scope}] - {x}')
-        if scope == 'ERROR':
+        logger.info(f"[{prefix}][{scope}] - {x}")
+        if scope == "ERROR":
             traceback.print_exception(*sys.exc_info())
 
     return Observer(
-        lambda x: fn(x, 'NEXT'),
-        lambda x: fn(x, 'ERROR'),
-        lambda: fn('No message on completion', 'COMPLETE'),
+        lambda x: fn(x, "NEXT"),
+        lambda x: fn(x, "ERROR"),
+        lambda: fn("No message on completion", "COMPLETE"),
     )
 
 
@@ -47,5 +47,8 @@ def info_operator(prefix: str):
 
 
 class LogOnDisposeDisposable(CompositeDisposable):
-    def __init__(self, disposables: List[DisposableBase], message: str = ''):
-        super().__init__(*disposables, Disposable(action=lambda: logger.info('DISPOSING %s', message)))
+    def __init__(self, disposables: List[DisposableBase], message: str = ""):
+        super().__init__(
+            *disposables,
+            Disposable(action=lambda: logger.info("DISPOSING %s", message)),
+        )

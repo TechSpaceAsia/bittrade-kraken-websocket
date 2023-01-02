@@ -37,6 +37,7 @@ default_zero = "0.00000000"
 class Order:
     order_id: str
     status: OrderStatus
+    side: OrderSide
     description: str
     reference: int = 0
     open_time: str = ""

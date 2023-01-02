@@ -42,3 +42,4 @@ poetry/core/*
 config_local/
 **/key
 **/secret
+.hypothesis/

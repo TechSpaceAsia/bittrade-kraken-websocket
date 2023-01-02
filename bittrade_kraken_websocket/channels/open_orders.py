@@ -1,25 +1,31 @@
-from typing import List, Dict, Literal, TypedDict
+from decimal import Decimal
+from typing import Dict, List, Literal, Optional, TypedDict
 
+from expression import Some
 from reactivex import Observable, compose, operators
+from pydantic.dataclasses import dataclass
+
+from bittrade_kraken_websocket.events import Order, OrderStatus, OrderSide, OrderType
 
 from .channels import ChannelName
 from .payload import private_to_payload
 from .subscribe import subscribe_to_channel
 
-from bittrade_kraken_websocket.events import Order, OrderStatus
 
-OrderType = Literal["buy", "sell"]
+class DescrConfig:
+    use_enum_values = True
 
 
-class OpenOrdersPayloadEntryDescr(TypedDict):
-    close: str
-    leverage: str
+@dataclass(config=DescrConfig)
+class OpenOrdersPayloadEntryDescr:
+    close: Optional[str]
+    leverage: Optional[str]
     order: str
-    ordertype: str
+    ordertype: OrderType
     pair: str
-    price: str
-    price2: str
-    type: OrderType
+    price: Decimal
+    price2: Decimal
+    type: OrderSide
 
 
 class OpenOrdersPayloadEntry(TypedDict):
@@ -45,36 +51,34 @@ class OpenOrdersPayloadEntry(TypedDict):
 """
 Sample
     {
-            "OHOCUM-KM3UM-6Y7GPI": {
-                "avg_price": "0.00000000",
-                "cost": "0.00000000",
-                "descr": {
-                    "close": null,
-                    "leverage": null,
-                    "order": "buy 30.00000000 USDT/USD @ limit 0.99980000",
-                    "ordertype": "limit",
-                    "pair": "USDT/USD",
-                    "price": "0.99980000",
-                    "price2": "0.00000000",
-                    "type": "buy"
-                },
-                "expiretm": null,
-                "fee": "0.00000000",
-                "limitprice": "0.00000000",
-                "misc": "",
-                "oflags": "fciq",
-                "opentm": "1672114415.357414",
-                "refid": null,
-                "starttm": null,
-                "status": "pending",
-                "stopprice": "0.00000000",
-                "timeinforce": "GTC",
-                "userref": 0,
-                "vol": "30.00000000",
-                "vol_exec": "0.00000000"
-            }
-        }
-    ]
+        "OHOCUM-KM3UM-6Y7GPI": {
+            "avg_price": "0.00000000",
+            "cost": "0.00000000",
+            "descr": {
+                "close": null,
+                "leverage": null,
+                "order": "buy 30.00000000 USDT/USD @ limit 0.99980000",
+                "ordertype": "limit",
+                "pair": "USDT/USD",
+                "price": "0.99980000",
+                "price2": "0.00000000",
+                "type": "buy"
+            },
+            "expiretm": null,
+            "fee": "0.00000000",
+            "limitprice": "0.00000000",
+            "misc": "",
+            "oflags": "fciq",
+            "opentm": "1672114415.357414",
+            "refid": null,
+            "starttm": null,
+            "status": "pending",
+            "stopprice": "0.00000000",
+            "timeinforce": "GTC",
+            "userref": 0,
+            "vol": "30.00000000",
+            "vol_exec": "0.00000000"
+        }}
 """
 
 
@@ -146,14 +150,47 @@ def is_initial_details(message: OpenOrdersPayloadEntry):
 
 
 def initial_details_to_order(message: OpenOrdersPayloadEntry, order_id: str) -> Order:
-    descr = message["descr"]
+    """
+    "OHOCUM-KM3UM-6Y7GPI": {
+        "avg_price": "0.00000000",
+        "cost": "0.00000000",
+        "descr": {
+            "close": null,
+            "leverage": null,
+            "order": "buy 30.00000000 USDT/USD @ limit 0.99980000",
+            "ordertype": "limit",
+            "pair": "USDT/USD",
+            "price": "0.99980000",
+            "price2": "0.00000000",
+            "type": "buy"
+        },
+        "expiretm": null,
+        "fee": "0.00000000",
+        "limitprice": "0.00000000",
+        "misc": "",
+        "oflags": "fciq",
+        "opentm": "1672114415.357414",
+        "refid": null,
+        "starttm": null,
+        "status": "pending",
+        "stopprice": "0.00000000",
+        "timeinforce": "GTC",
+        "userref": 0,
+        "vol": "30.00000000",
+        "vol_exec": "0.00000000"
+    }
+    """
+    descr = OpenOrdersPayloadEntryDescr(**message["descr"])
     return Order(
         order_id=order_id,
         status=OrderStatus.pending,
-        description=descr["order"],
-        price=descr["price"],
+        description=descr.order,
+        price=descr.price,
+        price2=descr.price2,
         volume=message["vol"],
         volume_executed=message["vol_exec"],
+        side=descr.type,
+        order_type=Some(Order),
     )
 
 

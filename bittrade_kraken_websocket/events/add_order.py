@@ -1,7 +1,8 @@
 import dataclasses
+from decimal import Decimal
+import functools
 from logging import getLogger
 from typing import Dict, List, TypedDict, Optional, Literal, Tuple
-import typing
 
 from reactivex import Observable, operators, throw
 from reactivex.abc import ObserverBase, SchedulerBase
@@ -52,7 +53,7 @@ class AddOrderResponse(TypedDict):
     txid: str
 
 
-def _mapper_event_response_to_order(message: Dict[str, str]):
+def _mapper_event_response_to_order(request: AddOrderRequest, message: Dict[str, str]):
     """
     {
       "descr": "buy 10.00000000 USDTUSD @ limit 0.9980",
@@ -75,18 +76,21 @@ def _mapper_event_response_to_order(message: Dict[str, str]):
         order_id=message["txid"],
         status=OrderStatus.submitted,
         description=message["descr"],
+        side=request.type,
+        order_type=request.ordertype,
+        price=Decimal(request.price),
     )
 
 
-def map_response_to_order():
-    return operators.map(_mapper_event_response_to_order)
+def map_response_to_order(request: AddOrderRequest):
+    return operators.map(functools.partial(_mapper_event_response_to_order, request))
 
 
 @curry_flip(1)
-def order_related_messages_only(source: Observable[Dict | List], order_id: str) -> Observable[Dict[str, str]]:
-    def subscribe(
-        observer: ObserverBase, scheduler: Optional[SchedulerBase] = None
-    ):
+def order_related_messages_only(
+    source: Observable[Dict | List], order_id: str
+) -> Observable[Dict[str, str]]:
+    def subscribe(observer: ObserverBase, scheduler: Optional[SchedulerBase] = None):
         def on_next(message):
             try:
                 is_valid = message[1] == "openOrders" and order_id in message[0][0]
@@ -148,7 +152,7 @@ def create_order_lifecycle(
         obs = messages.pipe(
             wait_for_response(request.reqid, 5.0),
             response_ok(),
-            map_response_to_order(),
+            map_response_to_order(request),
             operators.flat_map(initial_order_received),
         )
         connection.send_json(dataclasses.asdict(request))  # type: ignore

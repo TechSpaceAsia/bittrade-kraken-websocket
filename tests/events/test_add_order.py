@@ -7,6 +7,7 @@ import reactivex
 from reactivex import operators
 from reactivex.testing import ReactiveTest, TestScheduler
 from reactivex.testing.subscription import Subscription
+from bittrade_kraken_websocket.channels.open_orders import OpenOrdersPayloadEntryDescr
 
 from bittrade_kraken_websocket.events.add_order import (
     AddOrderRequest,
@@ -20,13 +21,8 @@ from bittrade_kraken_websocket.events.models.order import (
     OrderType,
 )
 from bittrade_kraken_websocket.events.request_response import (
-    request_response,
-    _response_ok,
     RequestResponseError,
-    wait_for_response,
-    build_matcher,
 )
-from bittrade_kraken_websocket.events import request_response_factory
 from tests.helpers.from_sample import from_sample
 
 on_next = ReactiveTest.on_next
@@ -46,6 +42,23 @@ request_sample: AddOrderRequest = AddOrderRequest(
         "oflags": "",
     }
 )
+
+
+def test_pydantic_parse_description():
+    descr = {
+        "close": None,
+        "leverage": None,
+        "order": "buy 30.00000000 USDT/USD @ limit 0.99980000",
+        "ordertype": "limit",
+        "pair": "USDT/USD",
+        "price": "0.99980000",
+        "price2": "0.00000000",
+        "type": "buy",
+    }
+    parsed = OpenOrdersPayloadEntryDescr(**descr)
+
+    assert parsed.type == OrderSide.buy
+    assert parsed.price == Decimal("0.9998000")
 
 
 def test_create_order_lifecycle():
@@ -72,6 +85,11 @@ def test_create_order_lifecycle():
                 order_id="OCI7RW-HMJJ2-WMMJBE",
                 status=OrderStatus.submitted,
                 description="buy 10.00000000 USDTUSD @ limit 0.9980",
+                side=OrderSide.buy,
+                order_type=OrderType.limit,
+                price=Decimal(
+                    "10"
+                ),  # this 10 comes from the sample request, at this stage we do not yet have a value from Kraken, so using request's details
             ),
         ),
         on_next(
@@ -79,9 +97,12 @@ def test_create_order_lifecycle():
             Order(
                 order_id="OCI7RW-HMJJ2-WMMJBE",
                 status=OrderStatus.pending,
-                price="0.99800000",
+                price=Decimal("0.99800000"),
+                price2=Decimal("0.00000000"),
                 description="buy 10.00000000 USDTUSD @ limit 0.9980",
+                order_type=OrderType.limit,
                 volume="10.00000000",
+                side=OrderSide.buy,
             ),
         ),
         on_next(
@@ -89,14 +110,24 @@ def test_create_order_lifecycle():
             Order(
                 order_id="OCI7RW-HMJJ2-WMMJBE",
                 status=OrderStatus.open,
-                price="0.99800000",
+                price=Decimal("0.99800000"),
                 description="buy 10.00000000 USDTUSD @ limit 0.9980",
+                order_type=OrderType.limit,
+                price2=Decimal("0.00000000"),
                 volume="10.00000000",
+                side=OrderSide.buy,
             ),
         ),
         on_completed(6),
     ]
     assert result.messages == expected
+    # for i, assertion in enumerate(zip(result.messages, expected)):
+    #     message, exp = assertion
+    #     # assert message == exp, f"Error on message {i+1}"
+    #     assert message.value.value == exp.value.value
+    #     assert message.time == exp.time
+    #     assert message.value.kind == exp.value.kind
+    #     assert message.value == exp.value
 
     socket.send_json.assert_called_once_with(dataclasses.asdict(request_sample))
 

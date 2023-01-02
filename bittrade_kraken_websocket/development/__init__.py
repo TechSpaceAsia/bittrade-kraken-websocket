@@ -1,4 +1,4 @@
-from typing import Callable, List
+from typing import Callable, List, Any
 
 from reactivex import Observer, operators
 from reactivex.abc import DisposableBase
@@ -12,7 +12,7 @@ logger = getLogger(__name__)
 console = Console()
 
 
-def debug_observer(prefix: str):
+def debug_observer(prefix: str) -> Observer[Any]:
     def fn(x, scope):
         logger.debug(f'[{prefix}][{scope}] - {x}')
         if scope == 'ERROR':
@@ -29,7 +29,7 @@ def debug_operator(prefix: str):
     return operators.do(debug_observer(prefix))
 
 
-def info_observer(prefix: str):
+def info_observer(prefix: str) -> Observer[Any]:
     def fn(x, scope):
         logger.info(f'[{prefix}][{scope}] - {x}')
         if scope == 'ERROR':

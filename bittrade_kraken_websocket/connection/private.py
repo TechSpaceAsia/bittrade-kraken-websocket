@@ -1,5 +1,5 @@
 from logging import getLogger
-from typing import Optional, overload, Literal
+from typing import Callable, List, Optional, overload, Literal
 
 from reactivex import Observable, ConnectableObservable
 from reactivex.abc import SchedulerBase
@@ -48,7 +48,7 @@ def private_websocket_connection(*,
 def private_websocket_connection(*, reconnect: bool = False, shared: bool = True, scheduler: Optional[SchedulerBase] = None):
     """Token generator is an observable which is expected to emit a single item upon subscription then complete.
     An example implementation can be found in `examples/private_subscription.py`"""
-    ops = []
+    ops: List[Callable[[Observable[WebsocketBundle]], Observable[WebsocketBundle]]] = []
     if reconnect:
         ops.append(retry_with_backoff())
     if shared:

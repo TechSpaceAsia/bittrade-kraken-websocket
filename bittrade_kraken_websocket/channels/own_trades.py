@@ -1,4 +1,4 @@
-from typing import List, Dict, Optional, TypedDict
+from typing import List, Dict, Optional, TypedDict, Any
 
 from reactivex import Observable, compose, operators
 
@@ -89,7 +89,7 @@ class OwnTradesPayloadEntry(TypedDict):
 OwnTradesPayload = List[Dict[str, OwnTradesPayloadEntry]]
 
 
-def to_own_trades_payload(message: List):
+def to_own_trades_payload(message: List[Any]):
     return private_to_payload(message, OwnTradesPayload)
 
 

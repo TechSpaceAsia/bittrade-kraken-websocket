@@ -16,6 +16,11 @@ def public_websocket_connection() -> ConnectableObservable[WebsocketBundle]:
 def public_websocket_connection(*, scheduler: Optional[SchedulerBase]) -> ConnectableObservable[WebsocketBundle]:
     ...
 
+    
+@overload
+def public_websocket_connection(*, reconnect: bool) -> ConnectableObservable[WebsocketBundle]:
+    ...
+
 
 @overload
 def public_websocket_connection(*, reconnect: bool, scheduler: Optional[SchedulerBase]) -> ConnectableObservable[WebsocketBundle]:

@@ -8,6 +8,8 @@ from reactivex.abc import ObserverBase, SchedulerBase
 from reactivex.subject import BehaviorSubject
 from reactivex.disposable import CompositeDisposable
 
+from expression import Option, curry_flip
+
 from bittrade_kraken_websocket.connection import EnhancedWebsocket
 from bittrade_kraken_websocket.events.events import EventName
 from bittrade_kraken_websocket.events.models.order import (
@@ -50,7 +52,7 @@ class AddOrderResponse(TypedDict):
     txid: str
 
 
-def _mapper_event_response_to_order(message: Dict):
+def _mapper_event_response_to_order(message: Dict[str, str]):
     """
     {
       "descr": "buy 10.00000000 USDTUSD @ limit 0.9980",
@@ -80,32 +82,28 @@ def map_response_to_order():
     return operators.map(_mapper_event_response_to_order)
 
 
-def order_related_messages_only(order_id: str):
-    def _order_related_messages_only(
-        source: Observable[Dict | List],
-    ) -> Observable[Dict]:
-        def subscribe(
-            observer: ObserverBase, scheduler: Optional[SchedulerBase] = None
-        ):
-            def on_next(message):
-                try:
-                    is_valid = message[1] == "openOrders" and order_id in message[0][0]
-                except:
-                    pass
-                else:
-                    if is_valid:
-                        observer.on_next(message[0][0][order_id])
+@curry_flip(1)
+def order_related_messages_only(source: Observable[Dict | List], order_id: str) -> Observable[Dict[str, str]]:
+    def subscribe(
+        observer: ObserverBase, scheduler: Optional[SchedulerBase] = None
+    ):
+        def on_next(message):
+            try:
+                is_valid = message[1] == "openOrders" and order_id in message[0][0]
+            except:
+                pass
+            else:
+                if is_valid:
+                    observer.on_next(message[0][0][order_id])
 
-            return source.subscribe(
-                on_next=on_next,
-                on_error=observer.on_error,
-                on_completed=observer.on_completed,
-                scheduler=scheduler,
-            )
+        return source.subscribe(
+            on_next=on_next,
+            on_error=observer.on_error,
+            on_completed=observer.on_completed,
+            scheduler=scheduler,
+        )
 
-        return Observable(subscribe)
-
-    return _order_related_messages_only
+    return Observable(subscribe)
 
 
 def update_order(existing: Order, message: Dict) -> Order:
@@ -162,21 +160,12 @@ def create_order_lifecycle(
 
 
 def add_order_factory(
-    socket: Observable[EnhancedWebsocket]
-    | BehaviorSubject[Optional[EnhancedWebsocket]],
+    socket: BehaviorSubject[Option[EnhancedWebsocket]],
     messages: Observable[Dict | List],
 ):
-    # Keep track of the latest socket for easier sending
-    connection: BehaviorSubject[Optional[EnhancedWebsocket]]
-    if type(socket) != BehaviorSubject:
-        # Note: for the time being this creates an infinite subscription, at least until socket is completed
-        connection = BehaviorSubject(None)
-        socket.subscribe(connection)
-    else:
-        connection = typing.cast(BehaviorSubject[Optional[EnhancedWebsocket]], socket)
-
     def add_order(request: AddOrderRequest) -> Observable[Order]:
-        if not connection.value:
+        connection = socket.value
+        if connection.is_none():
             return throw(ValueError("No socket"))
         current_connection = connection.value
         if not request.event:

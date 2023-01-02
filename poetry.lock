@@ -290,6 +290,21 @@ files = [
 tests = ["asttokens", "littleutils", "pytest", "rich"]
 
 [[package]]
+name = "expression"
+version = "4.2.2"
+description = "Practical functional programming for Python 3.9+"
+category = "main"
+optional = false
+python-versions = ">=3.9,<4"
+files = [
+    {file = "expression-4.2.2-py3-none-any.whl", hash = "sha256:091e555185ff26ebaaabfb2b1ad8f3f89029c203bad49b5322ab8e4412db4587"},
+    {file = "expression-4.2.2.tar.gz", hash = "sha256:68e81c17b629b195da5c04c1c093097d89d7b191c39590d1ad68507038f69976"},
+]
+
+[package.dependencies]
+typing-extensions = ">=4.1.1,<5.0.0"
+
+[[package]]
 name = "idna"
 version = "3.4"
 description = "Internationalized Domain Names in Applications (IDNA)"
@@ -898,4 +913,4 @@ test = ["websockets"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "b75d98a8d74bd2b637f9bcf81714325efebb924a1f9f5c63719149440a5a96da"
+content-hash = "02a0460bef12cda3d980d585667f46853f9de0f3f16dfa91fc46a0daa7103249"

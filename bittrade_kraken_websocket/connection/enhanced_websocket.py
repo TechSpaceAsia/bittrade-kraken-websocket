@@ -1,10 +1,8 @@
 from logging import getLogger
-from threading import Lock
-from typing import Any, Optional, Dict
+from typing import Any, Dict
 
 import orjson
 import websocket
-from reactivex import Observable
 
 logger = getLogger(__name__)
 
@@ -13,7 +11,7 @@ class EnhancedWebsocket():
     socket: websocket.WebSocketApp
     token: str = ''
 
-    def __init__(self, socket: websocket.WebSocketApp, *, token=''):
+    def __init__(self, socket: websocket.WebSocketApp, *, token: str=''):
         self.socket = socket
         self.token = token
 
@@ -21,7 +19,7 @@ class EnhancedWebsocket():
     def is_private(self) -> bool:
         return bool(self.token)
 
-    def send_json(self, payload: Dict[str, Any]):
+    def send_json(self, payload: Dict[str, Any]) -> None:
         if self.is_private:
             # if subscription, token goes into that, otherwise goes to top level
             put_token_into = payload.get('subscription', payload)

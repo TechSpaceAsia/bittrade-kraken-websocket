@@ -1,13 +1,13 @@
 from collections.abc import Generator
 from logging import getLogger
-from typing import Callable, TypeVar, Optional, List
+from typing import Any, Callable, TypeVar, Optional, cast
 
 import reactivex
 from reactivex import Observable, operators
-from reactivex.abc import DisposableBase
-from reactivex.scheduler import TimeoutScheduler
-from reactivex.disposable import Disposable, CompositeDisposable
+from reactivex.abc import DisposableBase, SchedulerBase
+from reactivex.disposable import CompositeDisposable
 from reactivex.operators import ignore_elements
+from expression import Some, Nothing, Option
 
 _T = TypeVar("_T")
 
@@ -23,7 +23,7 @@ def kraken_patterns():
 
 
 def retry_with_backoff(
-    stabilized: Optional[Observable] = None,
+    stabilized: Optional[Observable[Any]] = None,
     delays_pattern: Callable[[], Generator[float, None, None]] = kraken_patterns,
 ):
     """
@@ -60,15 +60,11 @@ def retry_with_backoff(
 
     def _retry_reconnect(source: Observable[_T]) -> Observable[_T]:
         # TODO move this to a SerialDisposable or something using switch_latest
-        current_stable_subscription: List[DisposableBase] = [
-            Disposable(
-                action=lambda *_: logger.debug("[BACKOFF] Cancelling fake initial sub")
-            )
-        ]
+        current_stable_subscription: Option[DisposableBase] = Nothing
         _is_first = True
 
-        def delay_generator(scheduler):
-            nonlocal _is_first
+        def delay_generator(scheduler: SchedulerBase):
+            nonlocal _is_first, current_stable_subscription
             is_completed = False
 
             def complete():
@@ -78,17 +74,18 @@ def retry_with_backoff(
             while not is_completed:
                 # TODO looks like we're not handling finite cases
                 delay_by = next(delays[0])
-                current_stable_subscription[0].dispose()
+                current_stable_subscription.bind(lambda x: Some(x.dispose()))
                 if _is_first:
                     _is_first = False
                 else:
                     logger.info("[BACKOFF] Back off delay is %s", delay_by)
-                yield reactivex.timer(delay_by).pipe(ignore_elements())
+                # Have to cheat a bit since there is no "Empty" observable type
+                yield cast(Observable[_T], reactivex.timer(delay_by).pipe(ignore_elements()))
                 if delay_by:
                     logger.info("[BACKOFF] Waited for back off; continuing")
-                current_stable_subscription[0] = CompositeDisposable(
+                current_stable_subscription = Some(CompositeDisposable(
                     stabilized.subscribe(on_completed=reset_delay),
-                )
+                ))
                 yield source.pipe(
                     operators.do_action(on_completed=complete),
                     operators.catch(reactivex.empty(scheduler)),
@@ -96,14 +93,14 @@ def retry_with_backoff(
 
         delays = [delays_pattern()]
 
-        def reset_delay(*_):
+        def reset_delay(*_: Any):
             logger.info("[BACKOFF] Source stabilized; delays have been reset")
             try:
                 delays[0] = delays_pattern()
             except Exception as exc:
                 logger.error("[BACKOFF] Failed to reset delays", exc)
 
-        def deferred_action(scheduler):
+        def deferred_action(scheduler: SchedulerBase):
             return reactivex.concat_with_iterable(
                 obs for obs in delay_generator(scheduler)
             )

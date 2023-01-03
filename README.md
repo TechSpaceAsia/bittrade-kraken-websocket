@@ -1,12 +1,15 @@
 # Kraken Websocket
 
+[NOT RELEASED] This is very much a work in progress, despite being on pypi.
+Most things might be wrongly documented; API **will** change
+
 ## Features
 
 - Reconnect with incremental backoff (per Kraken's recommendation)
 - Automatically reset subscription for private feeds when sequence is out of whack
 - request/response factories e.g. `add_order_factory` make websocket events feel like calling an API
 - ... but provides more info than a simple request/response; 
-  for instance, `add_o_rder` goes through each stage submitted->pending->open or canceled, 
+  for instance, `add_order` goes through each stage submitted->pending->open or canceled, 
   emitting a notification at each stage
 
 ## Installing

@@ -3,9 +3,17 @@ name = "bittrade-kraken-websocket"
 version = "0.2.1"
 description = "Reactive Websocket for Kraken"
 authors = ["mat <matt@techspace.asia>"]
-documentation = "README.md"
+readme = "README.md"
 repository = "https://github.com/TechSpaceAsia/bittrade-kraken-websocket"
 homepage = "https://github.com/TechSpaceAsia/bittrade-kraken-websocket"
+license = "MIT"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Topic :: Office/Business :: Financial :: Investment",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
 
 [tool.poetry.dependencies]
 python = "^3.10"
@@ -38,11 +46,11 @@ include = '\.py$'
 
 [tool.isort]
 profile = "black"
-line_length=88                 # corresponds to -w  flag
-multi_line_output=3            # corresponds to -m  flag
-include_trailing_comma=true    # corresponds to -tc flag
-skip_glob = '^((?!py$).)*$'    # isort all Python files
-float_to_top=true
+line_length = 88              # corresponds to -w  flag
+multi_line_output = 3         # corresponds to -m  flag
+include_trailing_comma = true # corresponds to -tc flag
+skip_glob = '^((?!py$).)*$'   # isort all Python files
+float_to_top = true
 
 
 [build-system]

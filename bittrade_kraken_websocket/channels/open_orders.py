@@ -4,6 +4,7 @@ from typing import Dict, List, Literal, Optional, TypedDict
 from expression import Some
 from reactivex import Observable, compose, operators
 from pydantic.dataclasses import dataclass
+from bittrade_kraken_websocket.channels.models.message import PrivateMessage, PublicMessage
 
 from bittrade_kraken_websocket.events import Order, OrderStatus, OrderSide, OrderType
 
@@ -31,7 +32,7 @@ class OpenOrdersPayloadEntryDescr:
 class OpenOrdersPayloadEntry(TypedDict):
     avg_price: str
     cost: str
-    descr: OpenOrdersPayloadEntryDescr | str
+    descr: Dict[str, str] | str
     expiretm: str
     fee: str
     limitprice: str
@@ -85,7 +86,7 @@ Sample
 OpenOrdersPayload = List[Dict[str, OpenOrdersPayloadEntry]]
 
 
-def to_open_orders_payload(message: List):
+def to_open_orders_payload(message: PrivateMessage | PublicMessage):
     return private_to_payload(message, OpenOrdersPayload)
 
 
@@ -190,7 +191,7 @@ def initial_details_to_order(message: OpenOrdersPayloadEntry, order_id: str) -> 
         volume=message["vol"],
         volume_executed=message["vol_exec"],
         side=descr.type,
-        order_type=Some(Order),
+        order_type=descr.ordertype,
     )
 
 

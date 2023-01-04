@@ -1,10 +1,14 @@
-from typing import List, Dict, Optional, TypedDict, Any
+from decimal import Decimal
+from typing import List, Dict, Optional, TypedDict, Any, cast
 
 from reactivex import Observable, compose, operators
 
 from bittrade_kraken_websocket.channels import ChannelName
+from bittrade_kraken_websocket.channels.models.message import PrivateMessage
 from bittrade_kraken_websocket.channels.payload import private_to_payload
 from bittrade_kraken_websocket.channels.subscribe import subscribe_to_channel
+from bittrade_kraken_websocket.events import OrderSide, OrderType
+from pydantic.dataclasses import dataclass
 
 
 class OwnTradesPayloadEntry(TypedDict):
@@ -85,12 +89,29 @@ class OwnTradesPayloadEntry(TypedDict):
     type: str
     vol: str
 
+@dataclass
+class OwnTradesPayloadParsed:
+    cost: Decimal
+    fee: str
+    margin: str
+    ordertxid: str
+    ordertype: OrderType
+    pair: str
+    postxid: str
+    price: Decimal
+    time: str
+    type: OrderSide
+    vol: Decimal
 
 OwnTradesPayload = List[Dict[str, OwnTradesPayloadEntry]]
 
 
-def to_own_trades_payload(message: List[Any]):
+def to_own_trades_payload(message: PrivateMessage):
     return private_to_payload(message, OwnTradesPayload)
+
+
+def parse_own_trade(payload: OwnTradesPayloadEntry):
+    return OwnTradesPayloadParsed(**payload)
 
 
 def subscribe_own_trades(
@@ -110,7 +131,7 @@ def subscribe_own_trades(
             ChannelName.CHANNEL_OWN_TRADES,
             subscription_kwargs=subscription_kwargs,
         ),
-        operators.map(to_own_trades_payload),
+        operators.map(lambda x: to_own_trades_payload(cast(PrivateMessage, x))),
     )
 
 
@@ -118,4 +139,6 @@ __all__ = [
     "OwnTradesPayload",
     "subscribe_own_trades",
     "OwnTradesPayloadEntry",
+    "parse_own_trade",
+    "OwnTradesPayloadParsed",
 ]

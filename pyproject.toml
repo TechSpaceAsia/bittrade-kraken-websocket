@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "bittrade-kraken-websocket"
-version = "0.2.1"
+version = "0.2.4"
 description = "Reactive Websocket for Kraken"
 authors = ["mat <matt@techspace.asia>"]
 readme = "README.md"

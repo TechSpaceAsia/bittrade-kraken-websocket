@@ -62,18 +62,20 @@ files = [
 
 [[package]]
 name = "bittrade-kraken-rest"
-version = "0.10.0"
+version = "0.12.1"
 description = "Kraken REST library"
 category = "main"
 optional = false
 python-versions = ">=3.10,<4.0"
 files = [
-    {file = "bittrade_kraken_rest-0.10.0-py3-none-any.whl", hash = "sha256:0eb809d23a76ab4a425d7519ec4b8ff87f8d78a812d04fbe500aa3f1bbf99a68"},
-    {file = "bittrade_kraken_rest-0.10.0.tar.gz", hash = "sha256:b62b74c212180e01fc96ad5bddd046b64b772628bc0a7e146af2220b755d32d1"},
+    {file = "bittrade_kraken_rest-0.12.1-py3-none-any.whl", hash = "sha256:e3e28098bbcdf593b2af10b23c69e85cca88dc61d0be5cc5454d1dbba12424af"},
+    {file = "bittrade_kraken_rest-0.12.1.tar.gz", hash = "sha256:be60cb1a955944cff5ae95e9253b3d883eecae7a86df71e6bf558d889e6e0b38"},
 ]
 
 [package.dependencies]
 orjson = ">=3.8.3,<4.0.0"
+pydantic = ">=1.10.4,<2.0.0"
+reactivex = ">=4.0.4,<5.0.0"
 requests = ">=2.28.1,<3.0.0"
 
 [[package]]
@@ -1011,4 +1013,4 @@ test = ["websockets"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "513c1fee7711950944bb97c32f4293b18255f74c75d8bc8936cf79e729661b12"
+content-hash = "16e913b6512a434e607839c727d524396601a57a649aa00c4415ea6f793ce79e"

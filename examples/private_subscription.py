@@ -1,7 +1,7 @@
 import logging
 import signal
 
-from reactivex import operators
+from reactivex import operators, Observable
 from reactivex.scheduler import ThreadPoolScheduler, TimeoutScheduler
 from rich.logging import RichHandler
 
@@ -11,7 +11,7 @@ from bittrade_kraken_websocket.connection import (
     private_websocket_connection,
     retry_with_backoff,
 )
-from bittrade_kraken_rest import get_websockets_token
+from bittrade_kraken_rest import get_websockets_token_request, get_websockets_token_result, GetWebsocketsTokenResult
 from pathlib import Path
 import hmac, base64, hashlib
 from urllib import parse
@@ -22,6 +22,8 @@ from bittrade_kraken_websocket.messages.listen import (
     keep_messages_only,
     filter_new_socket_only,
 )
+
+from requests.models import PreparedRequest
 
 console = RichHandler()
 console.setLevel(logging.DEBUG)
@@ -34,8 +36,7 @@ timeout_scheduler = TimeoutScheduler()
 ##### Don't use a library for this for security reasons; at most copy-paste this to your own code ####
 # Code taken (with a minor change on non_null_data) from https://docs.kraken.com/rest/#section/Authentication/Headers-and-Signature
 def generate_kraken_signature(urlpath, data, secret):
-    non_null_data = {k: v for k, v in data.items() if v is not None}
-    post_data = parse.urlencode(non_null_data)
+    post_data = parse.urlencode(data)
     encoded = (str(data["nonce"]) + post_data).encode()
     message = urlpath.encode() + hashlib.sha256(encoded).digest()
     mac = hmac.new(base64.b64decode(secret), message, hashlib.sha512)
@@ -43,20 +44,25 @@ def generate_kraken_signature(urlpath, data, secret):
     return signature_digest.decode()
 
 
-def get_token() -> str:
-    with get_websockets_token() as prep:
-        prep.headers["API-Key"] = Path(
-            "./config_local/key"
-        ).read_text()  # this reads key and secret from a gitignored folder at the root level; you could use env variables or other methods of loading your credentials
-        prep.headers["API-Sign"] = generate_kraken_signature(
-            prep.url, prep.data, Path("./config_local/secret").read_text()
-        )
-    return prep.response.get_result().token
+def sign(x: tuple[PreparedRequest, str, dict]) -> PreparedRequest:
+    request, url, data = x
+    signature = generate_kraken_signature(url, data, Path("./config_local/secret").read_text())
+    request = request.copy()
+    request.headers["API-Key"] = Path(
+        "./config_local/key"
+    ).read_text()  # this reads key and secret from a gitignored folder at the root level; you could use env variables or other methods of loading your credentials
+    request.headers["API-Sign"] = signature
+    return request
 
-def add_token(socket: EnhancedWebsocket):
-    token = get_token()
-    socket.token = token
-    return socket
+def add_token(socket: EnhancedWebsocket) -> Observable[EnhancedWebsocket]:
+    def set_token(result: GetWebsocketsTokenResult):
+        socket.token = result.token
+        return socket
+    return get_websockets_token_request().pipe(
+        operators.map(sign),
+        get_websockets_token_result(),
+        operators.map(set_token)
+    )
 
 ##### END Write your own for security reasons ####
 
@@ -68,7 +74,7 @@ connection = private_websocket_connection(reconnect=True)
 all_messages = connection.pipe(keep_messages_only(), operators.share())
 new_sockets = connection.pipe(
     filter_new_socket_only(),
-    operators.map(add_token),
+    operators.flat_map(add_token),
     operators.share(),
 )
 

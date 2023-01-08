@@ -147,7 +147,7 @@ def is_initial_details(message: OpenOrdersPayloadEntry):
         }
       }
     """
-    return message.get("status") == "pending"
+    return message.get("status") in [OrderStatus.pending, OrderStatus.open] and not is_open_message(message)
 
 
 def initial_details_to_order(message: OpenOrdersPayloadEntry, order_id: str) -> Order:
@@ -208,7 +208,7 @@ def is_final_message(message: OpenOrdersPayloadEntry):
 
 
 def is_open_message(message: OpenOrdersPayloadEntry):
-    return message.get("status") == "open"
+    return message.get("status") == "open" and "descr" not in message
 
 
 __all__ = [

@@ -23,8 +23,10 @@ from .channels.open_orders import (
     is_final_message, 
     is_partial_fill_update, 
     is_open_message,
+    is_initial_details,
 )
 from .channels.spread import subscribe_spread, SpreadPayload
+from .events.models import Order, OrderSide, OrderStatus, OrderType
 
 
 __all__ = [
@@ -33,7 +35,8 @@ __all__ = [
     "initial_details_to_order", 
     "is_cancel_message", 
     "is_close_message", 
-    "is_final_message", 
+    "is_final_message",
+    "is_initial_details",
     "is_open_message",
     "is_partial_fill_update", 
     "OpenOrdersPayload", 
@@ -50,5 +53,9 @@ __all__ = [
     "subscribe_ticker",
     "subscribe_spread", 
     "SpreadPayload",
-    "TickerPayload", 
+    "TickerPayload",
+    "Order", 
+    "OrderSide", 
+    "OrderStatus", 
+    "OrderType",
 ]

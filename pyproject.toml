@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "bittrade-kraken-websocket"
-version = "0.3.0"
+version = "0.3.1"
 description = "Reactive Websocket for Kraken"
 authors = ["mat <matt@techspace.asia>"]
 readme = "README.md"
@@ -24,11 +24,6 @@ orjson = "^3.8.3"
 expression = "^4.2.2"
 pydantic = "^1.10.4"
 
-[tool.poetry.dev-dependencies]
-pytest = "^7.2.0"
-ipython = "^8.7.0"
-rich = "^12.6.0"
-pytest-cov = "^4.0.0"
 
 [tool.poetry.group.env.dependencies]
 black = "^22.12.0"
@@ -38,6 +33,13 @@ isort = "^5.11.4"
 [tool.poetry.group.dev.dependencies]
 mypy = "^0.991"
 hypothesis = "^6.61.0"
+pytest = "^7.2.0"
+ipython = "^8.8.0"
+pytest-cov = "^4.0.0"
+
+
+[tool.poetry.group.rich.dependencies]
+rich = "^13.0.1"
 
 [tool.black]
 line-length = 88

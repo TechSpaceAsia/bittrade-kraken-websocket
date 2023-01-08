@@ -73,7 +73,7 @@ Similar to [bittrade-kraken-rest](https://github.com/TechSpaceAsia/bittrade-krak
 Currently, you need to set the token onto the `EnhancedWebsocket`; this means we have no access to your Api key and secret.
 Since the token is connection based and can't be reused, this protects you as much as Kraken's current authentication method allows.
 
-In the future we might even ask you to code your own `send_json` method instead.
+In the future we might even let you code your own `send_json` method instead.
 
 See `examples/private_subscription.py` for an example of implementation
 
@@ -84,3 +84,9 @@ new_sockets = connection.pipe(
     operators.share(),
 )
 ```
+
+## Examples
+
+Most examples in the `examples` folder make use of the `development` module helpers and the rich logging. You will need to install the dependencies from the `rich` group to use them:
+
+`poetry add bittrade_kraken_websocket -E rich`

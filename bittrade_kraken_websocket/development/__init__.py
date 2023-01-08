@@ -1,15 +1,20 @@
-from typing import Callable, List, Any
+from typing import List, Any
 
 from reactivex import Observer, operators
 from reactivex.abc import DisposableBase
 from reactivex.disposable import CompositeDisposable, Disposable
 from logging import getLogger
-from rich.console import Console
+from expression import Some, Option, Nothing
 import traceback
 import sys
 
 logger = getLogger(__name__)
-console = Console()
+console: Option["Console"] = Nothing
+try:
+    from rich.console import Console
+    console = Some(Console())
+except ImportError:
+    logger.warning('Package `rich` not installed. Some features may not work.')
 
 
 def debug_observer(prefix: str) -> Observer[Any]:
@@ -17,10 +22,11 @@ def debug_observer(prefix: str) -> Observer[Any]:
         logger.debug(f"[{prefix}][{scope}] - {x}")
         if scope == "ERROR":
             traceback.print_exception(*sys.exc_info())
+            console.bind(lambda c: c.print_exception())
 
     return Observer(
         lambda x: fn(x, "NEXT"),
-        lambda x: fn(x, "ERROR") and console.print_exception(),
+        lambda x: fn(x, "ERROR"),
         lambda: fn("No message on completion", "COMPLETE"),
     )
 
@@ -34,6 +40,7 @@ def info_observer(prefix: str) -> Observer[Any]:
         logger.info(f"[{prefix}][{scope}] - {x}")
         if scope == "ERROR":
             traceback.print_exception(*sys.exc_info())
+            console.bind(lambda c: c.print_exception())
 
     return Observer(
         lambda x: fn(x, "NEXT"),

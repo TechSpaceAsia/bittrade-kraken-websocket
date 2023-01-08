@@ -1,6 +1,6 @@
-from bittrade_kraken_websocket.connection.generic import WebsocketBundle
-from reactivex import ConnectableObservable, Observable
-from reactivex.abc import SchedulerBase
+from bittrade_kraken_websocket.connection.generic import WebsocketBundle as WebsocketBundle
+from reactivex import ConnectableObservable as ConnectableObservable, Observable as Observable
+from reactivex.abc import SchedulerBase as SchedulerBase
 from typing import Literal, Optional, overload
 
 @overload

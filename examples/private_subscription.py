@@ -7,18 +7,17 @@ from rich.logging import RichHandler
 
 from bittrade_kraken_websocket import subscribe_open_orders, subscribe_own_trades
 
-from bittrade_kraken_websocket.connection import (
+from bittrade_kraken_websocket import (
     private_websocket_connection,
-    retry_with_backoff,
+    EnhancedWebsocket
 )
 from bittrade_kraken_rest import get_websockets_token_request, get_websockets_token_result, GetWebsocketsTokenResult
 from pathlib import Path
 import hmac, base64, hashlib
 from urllib import parse
-from bittrade_kraken_websocket import EnhancedWebsocket
 
 from bittrade_kraken_websocket.development import info_observer
-from bittrade_kraken_websocket.messages.listen import (
+from bittrade_kraken_websocket.operators import (
     keep_messages_only,
     filter_new_socket_only,
 )
@@ -64,7 +63,7 @@ def add_token(socket: EnhancedWebsocket) -> Observable[EnhancedWebsocket]:
         operators.map(set_token)
     )
 
-##### END Write your own for security reasons ####
+##### END OF "Write your own for security reasons" ####
 
 connection = private_websocket_connection(reconnect=True)
 # Uncomment this to see the status of the socket being emitted

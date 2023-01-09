@@ -4,7 +4,10 @@ from typing import Dict, List, Literal, Optional, TypedDict
 from expression import Some
 from reactivex import Observable, compose, operators
 from pydantic.dataclasses import dataclass
-from bittrade_kraken_websocket.channels.models.message import PrivateMessage, PublicMessage
+from bittrade_kraken_websocket.channels.models.message import (
+    PrivateMessage,
+    PublicMessage,
+)
 
 from bittrade_kraken_websocket.events import Order, OrderStatus, OrderSide, OrderType
 
@@ -147,7 +150,10 @@ def is_initial_details(message: OpenOrdersPayloadEntry):
         }
       }
     """
-    return message.get("status") in [OrderStatus.pending, OrderStatus.open] and not is_open_message(message)
+    return message.get("status") in [
+        OrderStatus.pending,
+        OrderStatus.open,
+    ] and not is_open_message(message)
 
 
 def initial_details_to_order(message: OpenOrdersPayloadEntry, order_id: str) -> Order:
@@ -184,7 +190,7 @@ def initial_details_to_order(message: OpenOrdersPayloadEntry, order_id: str) -> 
     descr = OpenOrdersPayloadEntryDescr(**message["descr"])
     return Order(
         order_id=order_id,
-        status=OrderStatus.pending,
+        status=OrderStatus(message["status"]),
         description=descr.order,
         price=descr.price,
         price2=descr.price2,

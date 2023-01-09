@@ -36,6 +36,7 @@ hypothesis = "^6.61.0"
 pytest = "^7.2.0"
 ipython = "^8.8.0"
 pytest-cov = "^4.0.0"
+pyright = "^1.1.287"
 
 
 [tool.poetry.group.rich.dependencies]

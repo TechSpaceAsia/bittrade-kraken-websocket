@@ -17,7 +17,7 @@ classifiers = [
 
 [tool.poetry.dependencies]
 python = "^3.10"
-bittrade-kraken-rest = "^0.12.1"
+bittrade-kraken-rest = "^0.12.3"
 reactivex = "^4.0.4"
 websocket-client = "^1.4.2"
 orjson = "^3.8.3"

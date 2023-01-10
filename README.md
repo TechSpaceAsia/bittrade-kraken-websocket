@@ -29,7 +29,7 @@ For simple use cases, they are also rather easy to use as shown in the [examples
 ### Concurrency
 
 Internally the library uses threads.
-For your main programme you don't have to worry about threads; you can block the main thread.
+For your main program you don't have to worry about threads; you can block the main thread.
 
 ## Getting started
 

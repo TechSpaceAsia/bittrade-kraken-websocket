@@ -11,7 +11,7 @@ from bittrade_kraken_websocket.connection.reconnect import retry_with_backoff
 logger = getLogger(__name__)
 
 
-def private_websocket_connection(*, reconnect: bool = False, scheduler: Optional[SchedulerBase] = None) -> ConnectableObservable[WebsocketBundle]:
+def private_websocket_connection(*, reconnect: bool = True, scheduler: Optional[SchedulerBase] = None) -> ConnectableObservable[WebsocketBundle]:
     """You need to add your token to the EnhancedWebsocket
     An example implementation can be found in `examples/private_subscription.py`"""
     connection = websocket_connection(

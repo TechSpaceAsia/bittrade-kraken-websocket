@@ -8,16 +8,13 @@ from .reconnect import retry_with_backoff
 from bittrade_kraken_websocket.connection.generic import websocket_connection, WebsocketBundle
 
 
-def public_websocket_connection(*, reconnect: bool = False, scheduler: Optional[SchedulerBase] = None) -> ConnectableObservable[
+def public_websocket_connection(*, reconnect: bool = True, scheduler: Optional[SchedulerBase] = None) -> ConnectableObservable[
                                                                                      WebsocketBundle]:
-    ops = []
+    connection = websocket_connection(scheduler=scheduler)
     if reconnect:
-        ops.append(retry_with_backoff())
-    ops.append(publish())
-    return websocket_connection(scheduler=scheduler).pipe(
-        *ops
-    )
-
+        connection = connection.pipe(retry_with_backoff())
+    return connection.pipe(publish())
+    
 __all__ = [
     "public_websocket_connection",
 ]

@@ -44,7 +44,10 @@ def channel_subscription(
         socket.send_json(typing.cast(Dict, subscription_message))
 
     def on_exit():
-        socket.send_json(typing.cast(Dict, unsubscription_message))
+        try:
+            socket.send_json(typing.cast(Dict, unsubscription_message))
+        except Exception as ex:
+            logger.error("Could not send unsubscribe messages: %s", ex)
 
     def _channel_subscription(source: Observable[List]):
         def subscribe(
@@ -67,7 +70,9 @@ def subscribe_to_channel(
     *,
     pair: str = "",
     subscription_kwargs: Optional[Dict] = None,
-) -> Callable[[Observable[EnhancedWebsocket]], Observable[PublicMessage | PrivateMessage]]:
+) -> Callable[
+    [Observable[EnhancedWebsocket]], Observable[PublicMessage | PrivateMessage]
+]:
     is_private = channel in (
         ChannelName.CHANNEL_OWN_TRADES,
         ChannelName.CHANNEL_OPEN_ORDERS,

@@ -148,7 +148,7 @@ def create_order_lifecycle(
                     lambda o: not is_final_state(o.status), inclusive=True
                 ),
             )
-
+        sub = recorded_messages.connect()
         obs = messages.pipe(
             wait_for_response(request.reqid, 5.0),
             response_ok(),
@@ -157,7 +157,7 @@ def create_order_lifecycle(
         )
         connection.send_json(dataclasses.asdict(request))  # type: ignore
         return CompositeDisposable(
-            obs.subscribe(observer, scheduler=scheduler), recorded_messages.connect()
+            obs.subscribe(observer, scheduler=scheduler), sub
         )
 
     return Observable(subscribe)

@@ -208,6 +208,8 @@ def is_close_message(message: OpenOrdersPayloadEntry):
 def is_cancel_message(message: OpenOrdersPayloadEntry):
     return message.get("status") == "canceled"
 
+def is_cancel_replace_message(message: OpenOrdersPayloadEntry):
+    return is_cancel_message(message) and message.get('cancel_reason') == "Order replaced"
 
 def is_final_message(message: OpenOrdersPayloadEntry):
     return is_close_message(message) or is_cancel_message(message)
@@ -226,6 +228,7 @@ __all__ = [
     "is_open_message",
     "is_final_message",
     "is_cancel_message",
+    "is_cancel_replace_message",
     "is_close_message",
     "is_initial_details",
     "is_partial_fill_update",

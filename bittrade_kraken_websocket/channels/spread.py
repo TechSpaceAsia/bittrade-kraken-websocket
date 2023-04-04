@@ -16,7 +16,7 @@ def to_spread_payload(message: PrivateMessage | PublicMessage):
 
 def subscribe_spread(pair: str, messages: Observable[Dict | List]):
     return compose(
-        subscribe_to_channel(messages, ChannelName.CHANNEL_TICKER, pair=pair),
+        subscribe_to_channel(messages, ChannelName.CHANNEL_SPREAD, pair=pair),
         operators.map(to_spread_payload),
     )
 

@@ -23,27 +23,32 @@ from bittrade_kraken_websocket.events.request_response import (
 logger = getLogger(__name__)
 
 
-class CancelOrderError(Exception):
-    pass
-
-
 @dataclasses.dataclass
-class CancelOrderRequest:
-    txid: List[str]
+class EditOrderRequest:
+    orderid: str
+    pair: str
+    volume: str
+    price2: Optional[str] = ""
     reqid: Optional[int] = None
-    event: EventName = EventName.EVENT_CANCEL_ORDER
+    price: Optional[str] = None
+    oflags: Optional[str] = ""
+    newuserref: Optional[str] = ""
+    validate: Optional[str] = ""
+    event: EventName = EventName.EVENT_EDIT_ORDER
 
 
-class CancelOrderResponse(TypedDict):
-    descr: str
+class EditOrderResponse(TypedDict):
+    txid: str # new order id
+    originaltxid: str
+    reqid: str
     status: Literal["ok", "error"]
-    txid: str
+    descr: str
     errorMessage: str
 
 
-def cancel_order_lifecycle(
-    x: Tuple[CancelOrderRequest, EnhancedWebsocket], messages: Observable[Dict | List]
-) -> Observable[CancelOrderResponse]:
+def edit_order_lifecycle(
+    x: Tuple[EditOrderRequest, EnhancedWebsocket], messages: Observable[Dict | List]
+) -> Observable[EditOrderResponse]:
     request, connection = x
 
     def subscribe(observer: ObserverBase, scheduler: Optional[SchedulerBase] = None):
@@ -51,10 +56,10 @@ def cancel_order_lifecycle(
         recorded_messages = messages.pipe(operators.replay())
         sub = recorded_messages.connect()
         obs = messages.pipe(
-            wait_for_response(request.reqid, 5.0),
+            wait_for_response(request.reqid, 30.0),
             response_ok(),
         )
-        connection.send_json(dataclasses.asdict(request))  # type: ignore
+        connection.send_json(dataclasses.asdict(request, dict_factory=lambda x: {k: v for (k, v) in x if v is not None and v != ""}))  # type: ignore
         return CompositeDisposable(
             obs.subscribe(observer, scheduler=scheduler), 
             sub
@@ -63,28 +68,28 @@ def cancel_order_lifecycle(
     return Observable(subscribe)
 
 
-def cancel_order_factory(
+def edit_order_factory(
     socket: BehaviorSubject[Option[EnhancedWebsocket]],
     messages: Observable[Dict | List],
 ):
-    def cancel_order(request: CancelOrderRequest) -> Observable[Any]:
+    def edit_order(request: EditOrderRequest) -> Observable[Any]:
         connection = socket.value
         if connection.is_none():
             return throw(ValueError("No socket"))
         current_connection = connection.value
         if not request.event:
-            request.event = EventName.EVENT_CANCEL_ORDER
+            request.event = EventName.EVENT_EDIT_ORDER
         if not request.reqid:
             request.reqid = next(id_iterator)
 
-        return cancel_order_lifecycle((request, current_connection), messages)
+        return edit_order_lifecycle((request, current_connection), messages)
 
-    return cancel_order
+    return edit_order
+
 
 
 __all__ = [
-    "CancelOrderError",
-    "CancelOrderRequest",
-    "CancelOrderResponse",
-    "cancel_order_factory",
+    "EditOrderRequest",
+    "EditOrderResponse",
+    "edit_order_factory",
 ]

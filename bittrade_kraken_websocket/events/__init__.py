@@ -4,6 +4,7 @@ from .models import *
 from .events import *
 from .add_order import *
 from .cancel_order import *
+from .edit_order import *
 
 
 __all__ = [

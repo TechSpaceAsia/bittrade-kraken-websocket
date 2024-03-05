@@ -12,6 +12,7 @@ from .channels.own_trades import (
     parse_own_trade,
     OwnTradesPayloadParsed,
 )
+from .channels.ohlc import OHLCPayload, to_ohlc_payload, subscribe_ohlc
 from .channels.open_orders import (
     subscribe_open_orders, 
     OpenOrdersPayload, 
@@ -39,6 +40,9 @@ __all__ = [
     "is_initial_details",
     "is_open_message",
     "is_partial_fill_update", 
+    "OHLCPayload",
+    "subscribe_ohlc",
+    "to_ohlc_payload",
     "OpenOrdersPayload", 
     "OpenOrdersPayloadEntry", 
     "OpenOrdersPayloadEntryDescr", 

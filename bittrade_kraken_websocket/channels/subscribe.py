@@ -86,7 +86,7 @@ def subscribe_to_channel(
         socket: EnhancedWebsocket,
     ) -> Observable[PublicMessage | PrivateMessage]:
         return messages.pipe(
-            keep_channel_messages(channel, pair),
+            keep_channel_messages(channel, pair, subscription_keywords),
             channel_subscription(socket, channel, pair, subscription_keywords),
             *messages_operators,
         )

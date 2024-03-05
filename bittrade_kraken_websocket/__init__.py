@@ -3,7 +3,7 @@ __version__ = "0.1.0"
 from .connection.public import public_websocket_connection
 from .connection.private import private_websocket_connection
 from .connection.enhanced_websocket import EnhancedWebsocket
-from .channels import ChannelName
+from .channels import ChannelName, subscribe_trade, TradePayload
 from .channels.ticker import TickerPayload, subscribe_ticker
 from .channels.own_trades import (
     OwnTradesPayload,
@@ -51,9 +51,11 @@ __all__ = [
     "subscribe_open_orders", 
     "subscribe_own_trades",
     "subscribe_ticker",
+    "subscribe_trade",
     "subscribe_spread", 
     "SpreadPayload",
     "TickerPayload",
+    "TradePayload",
     "Order", 
     "OrderSide", 
     "OrderStatus", 

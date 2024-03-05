@@ -7,7 +7,7 @@ from reactivex.abc import DisposableBase
 from rich.logging import RichHandler
 
 from bittrade_kraken_websocket import (public_websocket_connection,
-                                       subscribe_spread, subscribe_ticker)
+                                       subscribe_spread, subscribe_ticker, subscribe_trade)
 from bittrade_kraken_websocket.development import (LogOnDisposeDisposable,
                                                    debug_observer,
                                                    info_observer)
@@ -33,27 +33,30 @@ ready = socket_connection.pipe(
     share()
 )
 # subscribe_to_channel gives an observable with only the messages from that channel
-ready.pipe(
-    subscribe_ticker('USDT/USD', messages)
-).subscribe(
-    info_observer('TICKER USDT')
-)
+# ready.pipe(
+#     subscribe_ticker('USDT/USD', messages)
+# ).subscribe(
+#     info_observer('TICKER USDT')
+# )
 
 # Disposing of the subscription to channel triggers sending the "unsubscribe" socket message.
 # The LogOnDisposeDisposable is just a helper to print a message on disposal - you will likely not need it
 to_be_disposed = LogOnDisposeDisposable(
     [ready.pipe(
-        subscribe_spread('XRP/USD', messages)
+        # subscribe_spread('XRP/USD', messages),
+        subscribe_trade('USDC/USD', messages),
     ).subscribe(
-        info_observer('SPREAD XRP')
+        # info_observer('SPREAD XRP')
+        info_observer('TRADE USDC'),
     )],
-    message='From here on, SPREAD XRP messages should not appear anymore'
+    message='From here on, TRADE messages should not appear anymore',
+    # message='From here on, SPREAD XRP messages should not appear anymore',
 )
 
 # Ready, start connecting and subscribing to channels
 sub = socket_connection.connect()
 
-time.sleep(10)
+time.sleep(30)
 to_be_disposed.dispose() # the "messages" will now show only "ticker", no more "spread"
 time.sleep(20)
 assert sub is not None

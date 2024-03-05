@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "bittrade-kraken-websocket"
-version = "0.3.6"
+version = "0.3.8"
 description = "Reactive Websocket for Kraken"
 authors = ["mat <matt@techspace.asia>"]
 readme = "README.md"
@@ -17,7 +17,7 @@ classifiers = [
 
 [tool.poetry.dependencies]
 python = "^3.10"
-bittrade-kraken-rest = "^0.13.1"
+bittrade-kraken-rest = "^0.13.7"
 reactivex = "^4.0.4"
 websocket-client = "^1.4.2"
 orjson = "^3.8.3"

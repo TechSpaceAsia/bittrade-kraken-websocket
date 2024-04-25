@@ -5,9 +5,10 @@ from reactivex import operators, Observable, compose
 
 from bittrade_kraken_websocket.connection.connection_operators import filter_socket_status_only
 from bittrade_kraken_websocket.connection.enhanced_websocket import EnhancedWebsocket
-from bittrade_kraken_websocket.connection.generic import WebsocketBundle, WEBSOCKET_MESSAGE, WEBSOCKET_STATUS
+from bittrade_kraken_websocket.connection.generic import WEBSOCKET_MESSAGE, WEBSOCKET_STATUS
 from bittrade_kraken_websocket.connection.status import Status
 
+from elm_framework_helpers.websockets.models import WebsocketBundle
 
 def _is_message(message: WebsocketBundle):
     return message[1] == WEBSOCKET_MESSAGE

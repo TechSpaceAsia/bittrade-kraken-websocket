@@ -1,5 +1,6 @@
 from logging import getLogger
 from typing import Any, Dict
+from elm_framework_helpers.websockets import models
 
 import orjson
 import websocket
@@ -7,8 +8,7 @@ import websocket
 logger = getLogger(__name__)
 
 
-class EnhancedWebsocket():
-    socket: websocket.WebSocketApp
+class EnhancedWebsocket(models.EnhancedWebsocket):
     token: str = ''
 
     def __init__(self, socket: websocket.WebSocketApp, *, token: str=''):

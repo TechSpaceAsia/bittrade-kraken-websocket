@@ -5,7 +5,9 @@ from reactivex import ConnectableObservable
 from reactivex.abc import SchedulerBase
 from reactivex.operators import publish
 
-from bittrade_kraken_websocket.connection.generic import websocket_connection, WebsocketBundle
+
+from elm_framework_helpers.websockets.models import WebsocketBundle
+from bittrade_kraken_websocket.connection.generic import websocket_connection
 from bittrade_kraken_websocket.connection.reconnect import retry_with_backoff
 
 logger = getLogger(__name__)

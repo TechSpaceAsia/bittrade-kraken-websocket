@@ -6,6 +6,8 @@ import reactivex.disposable
 from reactivex import Observable
 from reactivex.abc import SchedulerBase, ObserverBase
 from reactivex.scheduler import ThreadPoolScheduler
+from elm_framework_helpers.websockets.models import WebsocketBundle
+
 from websocket import WebSocketConnectionClosedException, WebSocketApp
 
 from bittrade_kraken_websocket.connection.enhanced_websocket import EnhancedWebsocket
@@ -24,7 +26,7 @@ WEBSOCKET_HEARTBEAT = "WEBSOCKET_HEARTBEAT"
 WEBSOCKET_MESSAGE = "WEBSOCKET_MESSAGE"
 MessageTypes = Literal["WEBSOCKET_STATUS", "WEBSOCKET_HEARTBEAT", "WEBSOCKET_MESSAGE"]
 
-WebsocketBundle = Tuple[EnhancedWebsocket, MessageTypes, Union[Status, Dict[str, Any], List[Any]]]
+# WebsocketBundle = Tuple[EnhancedWebsocket, MessageTypes, Union[Status, Dict[str, Any], List[Any]]]
 
 
 def websocket_connection(private: bool = False, scheduler: Optional[SchedulerBase] = None) -> Observable[WebsocketBundle]:
@@ -39,21 +41,22 @@ def raw_websocket_connection(url: str, scheduler: Optional[SchedulerBase] = None
         def action(*args: Any):
             nonlocal connection
             def on_error(_ws: WebSocketApp, error: Exception):
-                logger.error("[SOCKET][RAW] Websocket errored %s", error)
+                logger.error("[SOCKET][RAW] Websocket errored %s, at %s", error, url)
                 observer.on_next((enhanced, WEBSOCKET_STATUS, WEBSOCKET_CLOSED))
                 observer.on_error(error)
 
             def on_close(_ws: WebSocketApp, close_status_code: int, close_msg: str):
                 logger.warning(
-                    "[SOCKET][RAW] Websocket closed | status: %s, close message: %s",
+                    "[SOCKET][RAW] Websocket closed | status: %s, close message: %s, at %s",
                     close_status_code,
                     close_msg,
+                    url,
                 )
                 observer.on_next((enhanced, WEBSOCKET_STATUS, WEBSOCKET_CLOSED))
                 observer.on_error(Exception("Socket closed"))
 
             def on_open(_ws: WebSocketApp):
-                logger.info("[SOCKET][RAW] Websocket opened")
+                logger.info("[SOCKET][RAW] Websocket opened %s", url)
                 observer.on_next((enhanced, WEBSOCKET_STATUS, WEBSOCKET_OPENED))
 
             def on_message(_ws: WebSocketApp, message: bytes | str):
@@ -94,7 +97,7 @@ def raw_websocket_connection(url: str, scheduler: Optional[SchedulerBase] = None
                 connection.close()
             except WebSocketConnectionClosedException as exc:
                 logger.error("[SOCKET] Socket was already closed %s", exc)
-        
+
         return reactivex.disposable.CompositeDisposable(
             _scheduler.schedule(action),
             reactivex.disposable.Disposable(disconnect)

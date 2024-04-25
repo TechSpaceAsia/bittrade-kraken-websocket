@@ -2,7 +2,8 @@ from typing import Callable, List, Optional, Tuple
 
 from reactivex import compose, operators, Observable
 
-from bittrade_kraken_websocket.connection.generic import WebsocketBundle, EnhancedWebsocket, WEBSOCKET_STATUS
+from elm_framework_helpers.websockets.models import WebsocketBundle
+from bittrade_kraken_websocket.connection.generic import EnhancedWebsocket, WEBSOCKET_STATUS
 from bittrade_kraken_websocket.connection.status import WEBSOCKET_OPENED, WEBSOCKET_AUTHENTICATED, Status, \
     WEBSOCKET_SYSTEM_ONLINE, WEBSOCKET_CLOSED
 

@@ -23,6 +23,8 @@ websocket-client = "^1.4.2"
 orjson = "^3.8.3"
 expression = "^4.2.2"
 pydantic = "^1.10.4"
+elm-framework-helpers = "^0.3.1"
+ccxt = "2.6.5"
 
 
 [tool.poetry.group.env.dependencies]

@@ -2,6 +2,7 @@ from typing import Callable, cast
 
 from expression import Nothing, Option, Some
 
+from bittrade_kraken_websocket.channels.open_orders import subscribe_open_orders
 from bittrade_kraken_websocket.channels.own_trades import subscribe_own_trades
 from bittrade_kraken_websocket.channels.ticker import subscribe_ticker
 from bittrade_kraken_websocket.events.add_order import add_order_factory
@@ -63,6 +64,9 @@ def get_framework(
     subscribe_own_trades_factory = lambda: private_sockets.pipe(
         subscribe_own_trades(private_socket_messages)
     )
+    subscribe_open_orders_factory = lambda: private_sockets.pipe(
+        subscribe_open_orders(private_socket_messages)
+    )
 
     return FrameworkContext(
         exchange=exchange,
@@ -76,4 +80,5 @@ def get_framework(
         cancel_order=cancel_order,
         subscribe_ticker=subscribe_ticker_factory,
         subscribe_own_trades=subscribe_own_trades_factory,
+        subscribe_open_orders=subscribe_open_orders_factory,
     )

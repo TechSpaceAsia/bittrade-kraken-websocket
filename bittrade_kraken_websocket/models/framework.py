@@ -6,6 +6,7 @@ from elm_framework_helpers.websockets import models
 from reactivex import ConnectableObservable, Observable
 
 from bittrade_kraken_websocket.channels.models.ticker import TickerPayload
+from bittrade_kraken_websocket.channels.open_orders import OpenOrdersPayload
 from bittrade_kraken_websocket.channels.own_trades import OwnTradesPayload
 from bittrade_kraken_websocket.connection.enhanced_websocket import EnhancedWebsocket
 from bittrade_kraken_websocket.events.add_order import AddOrderRequest
@@ -26,3 +27,4 @@ class FrameworkContext:
     cancel_order: Callable[[CancelOrderRequest], Observable[Any]]
     subscribe_ticker: Callable[[str], Observable[TickerPayload]]
     subscribe_own_trades: Callable[[], Observable[OwnTradesPayload]]
+    subscribe_open_orders: Callable[[], Observable[OpenOrdersPayload]]

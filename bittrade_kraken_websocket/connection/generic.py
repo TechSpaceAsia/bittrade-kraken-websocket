@@ -1,5 +1,7 @@
+import errno
 from logging import getLogger
 from typing import Any, Tuple, Dict, Literal, Union, List, Optional
+from os import getenv
 
 import orjson
 import reactivex.disposable
@@ -26,9 +28,11 @@ MessageTypes = Literal["WEBSOCKET_STATUS", "WEBSOCKET_HEARTBEAT", "WEBSOCKET_MES
 
 WebsocketBundle = Tuple[EnhancedWebsocket, MessageTypes, Union[Status, Dict[str, Any], List[Any]]]
 
+WS_PUBLIC_URL = getenv("WS_PUBLIC_URL", "wss://ws.kraken.com")
+WS_PRIVATE_URL = getenv("WS_PRIVATE_URL", "wss://ws-auth.kraken.com")
 
 def websocket_connection(private: bool = False, scheduler: Optional[SchedulerBase] = None) -> Observable[WebsocketBundle]:
-    url = f'wss://ws{"-auth" if private else ""}.kraken.com'
+    url = WS_PRIVATE_URL if private else WS_PUBLIC_URL
     return raw_websocket_connection(url, scheduler=scheduler)
 
 
@@ -36,11 +40,14 @@ def raw_websocket_connection(url: str, scheduler: Optional[SchedulerBase] = None
     def subscribe(observer: ObserverBase[WebsocketBundle], scheduler_: Optional[SchedulerBase] = None):
         _scheduler = scheduler or scheduler_ or ThreadPoolScheduler()
         connection: WebSocketApp | None = None
+        was_connected = False
         def action(*args: Any):
-            nonlocal connection
+            nonlocal connection, was_connected
             def on_error(_ws: WebSocketApp, error: Exception):
                 logger.error("[SOCKET][RAW] Websocket errored %s", error)
-                observer.on_next((enhanced, WEBSOCKET_STATUS, WEBSOCKET_CLOSED))
+                # There are errors that occur before we even get connected, so we should not emit a status message
+                if was_connected:
+                    observer.on_next((enhanced, WEBSOCKET_STATUS, WEBSOCKET_CLOSED))
                 observer.on_error(error)
 
             def on_close(_ws: WebSocketApp, close_status_code: int, close_msg: str):
@@ -53,6 +60,8 @@ def raw_websocket_connection(url: str, scheduler: Optional[SchedulerBase] = None
                 observer.on_error(Exception("Socket closed"))
 
             def on_open(_ws: WebSocketApp):
+                nonlocal was_connected
+                was_connected = True
                 logger.info("[SOCKET][RAW] Websocket opened")
                 observer.on_next((enhanced, WEBSOCKET_STATUS, WEBSOCKET_OPENED))
 

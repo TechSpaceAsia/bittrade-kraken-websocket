@@ -21,7 +21,7 @@ logger.addHandler(console)
 
 stable = reactivex.interval(100.0) # this "stable" trigger lasts longer than the time until error so the connection will never be considered stable. You will therefore see the backoff in action
 
-with_backoff = public_websocket_connection(reconnect=False, shared=False).pipe(
+with_backoff = public_websocket_connection(reconnect=False).pipe(
     do_action(on_error=lambda x: logger.info('ERRORS WILL SHOW HERE %s', x)),
     retry_with_backoff(stabilized=stable),
     publish()

@@ -2,7 +2,7 @@ import logging
 import time
 from typing import cast
 
-from reactivex.operators import share
+from reactivex.operators import share, do_action
 from reactivex.abc import DisposableBase
 from rich.logging import RichHandler
 
@@ -15,8 +15,8 @@ from bittrade_kraken_websocket.operators import (filter_new_socket_only,
                                                  keep_messages_only)
 
 console = RichHandler()
-# console.setLevel(logging.DEBUG)  # <- use this to see subscribe/unsubscribe and raw messages
-console.setLevel(logging.INFO)  # <- use this to see only relevant (data) messages
+console.setLevel(logging.DEBUG)  # <- use this to see subscribe/unsubscribe and raw messages
+# console.setLevel(logging.INFO)  # <- use this to see only relevant (data) messages
 logger = logging.getLogger(
     'bittrade_kraken_websocket'
 )
@@ -31,6 +31,7 @@ messages.subscribe(debug_observer('ALL MESSAGES'))
 # Subscribe to multiple channels only when socket connects
 ready = socket_connection.pipe(
     filter_new_socket_only(),
+    do_action(lambda _: print('GOT NEW SOCKET')),
     share()
 )
 # subscribe_to_channel gives an observable with only the messages from that channel
@@ -66,4 +67,4 @@ time.sleep(30)
 # to_be_disposed.dispose() # the "messages" will now show only "ticker", no more "spread"
 time.sleep(20)
 assert sub is not None
-# sub.dispose() # because all the subscriptions here are children of the socket connectable observable, everything will get cleaned up and websocket closed
+sub.dispose() # because all the subscriptions here are children of the socket connectable observable, everything will get cleaned up and websocket closed

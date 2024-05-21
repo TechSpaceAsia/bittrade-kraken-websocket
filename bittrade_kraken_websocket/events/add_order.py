@@ -155,6 +155,7 @@ def create_order_lifecycle(
             map_response_to_order(request),
             operators.flat_map(initial_order_received),
         )
+        logger.debug("[ORDER] Subscribing to order lifecycle, %s", request)
         connection.send_json(dataclasses.asdict(request))  # type: ignore
         return CompositeDisposable(
             obs.subscribe(observer, scheduler=scheduler), sub

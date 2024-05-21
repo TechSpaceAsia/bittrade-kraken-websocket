@@ -20,7 +20,7 @@ from bittrade_kraken_websocket.events.models.order import (
     OrderStatus,
     is_final_state,
 )
-from bittrade_kraken_websocket.events.ids import id_iterator
+from bittrade_kraken_websocket.events.ids import id_iterator, id_seq_iterator
 from bittrade_kraken_websocket.events.request_response import (
     wait_for_response,
     response_ok,
@@ -177,6 +177,8 @@ def add_order_factory(
             request.event = EventName.EVENT_ADD_ORDER
         if not request.reqid:
             request.reqid = next(id_iterator)
+        if not request.userref:
+            request.userref = next(id_seq_iterator)
 
         return create_order_lifecycle((request, current_connection), messages)
 

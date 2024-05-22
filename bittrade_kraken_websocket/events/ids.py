@@ -12,7 +12,7 @@ def gen():
 def gen_seq():
     start = 1
     while True:
-        current = datetime.now().strftime("%Y%m%d%H%M")
+        current = datetime.now().strftime("%m%d%H")
         yield f"{current}{start}"
         start = start + 1
 

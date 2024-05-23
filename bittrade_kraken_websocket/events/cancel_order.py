@@ -42,7 +42,7 @@ class CancelOrderResponse(TypedDict):
 
 
 def cancel_order_lifecycle(
-    x: Tuple[CancelOrderRequest, EnhancedWebsocket], messages: Observable[Dict | List]
+    x: Tuple[CancelOrderRequest, EnhancedWebsocket], messages: Observable[Dict | List], timeout: float = 5.0
 ) -> Observable[CancelOrderResponse]:
     request, connection = x
 
@@ -51,7 +51,7 @@ def cancel_order_lifecycle(
         recorded_messages = messages.pipe(operators.replay())
         sub = recorded_messages.connect()
         obs = messages.pipe(
-            wait_for_response(request.reqid, 5.0),
+            wait_for_response(request.reqid, timeout),
             response_ok(),
         )
         connection.send_json(dataclasses.asdict(request))  # type: ignore
@@ -66,6 +66,7 @@ def cancel_order_lifecycle(
 def cancel_order_factory(
     socket: BehaviorSubject[Option[EnhancedWebsocket]],
     messages: Observable[Dict | List],
+    timeout: float = 5.0,
 ):
     def cancel_order(request: CancelOrderRequest) -> Observable[Any]:
         connection = socket.value
@@ -77,7 +78,7 @@ def cancel_order_factory(
         if not request.reqid:
             request.reqid = next(id_iterator)
 
-        return cancel_order_lifecycle((request, current_connection), messages)
+        return cancel_order_lifecycle((request, current_connection), messages, timeout)
 
     return cancel_order
 

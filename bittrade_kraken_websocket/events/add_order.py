@@ -130,7 +130,7 @@ def update_order(existing: Order, message: Dict) -> Order:
 
 
 def create_order_lifecycle(
-    x: Tuple[AddOrderRequest, EnhancedWebsocket], messages: Observable[Dict | List]
+    x: Tuple[AddOrderRequest, EnhancedWebsocket], messages: Observable[Dict | List], timeout: float = 5.0
 ) -> Observable[Order]:
     request, connection = x
 
@@ -150,7 +150,7 @@ def create_order_lifecycle(
             )
         sub = recorded_messages.connect()
         obs = messages.pipe(
-            wait_for_response(request.reqid, 5.0),
+            wait_for_response(request.reqid, timeout),
             response_ok(),
             map_response_to_order(request),
             operators.flat_map(initial_order_received),
@@ -167,6 +167,7 @@ def create_order_lifecycle(
 def add_order_factory(
     socket: BehaviorSubject[Option[EnhancedWebsocket]],
     messages: Observable[Dict | List],
+    timeout: float = 5.0
 ):
     def add_order(request: AddOrderRequest) -> Observable[Order]:
         connection = socket.value
@@ -180,7 +181,7 @@ def add_order_factory(
         if not request.userref:
             request.userref = next(id_seq_iterator)
 
-        return create_order_lifecycle((request, current_connection), messages)
+        return create_order_lifecycle((request, current_connection), messages, timeout)
 
     return add_order
 

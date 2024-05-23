@@ -166,10 +166,9 @@ def create_order_lifecycle(
 
 def add_order_factory(
     socket: BehaviorSubject[Option[EnhancedWebsocket]],
-    messages: Observable[Dict | List],
-    timeout: float = 5.0
+    messages: Observable[Dict | List]
 ):
-    def add_order(request: AddOrderRequest) -> Observable[Order]:
+    def add_order(request: AddOrderRequest, timeout: float = 5.0) -> Observable[Order]:
         connection = socket.value
         if connection.is_none():
             return throw(ValueError("No socket"))

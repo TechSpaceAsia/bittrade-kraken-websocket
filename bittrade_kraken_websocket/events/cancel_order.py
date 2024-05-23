@@ -66,9 +66,8 @@ def cancel_order_lifecycle(
 def cancel_order_factory(
     socket: BehaviorSubject[Option[EnhancedWebsocket]],
     messages: Observable[Dict | List],
-    timeout: float = 5.0,
 ):
-    def cancel_order(request: CancelOrderRequest) -> Observable[Any]:
+    def cancel_order(request: CancelOrderRequest, timeout: float = 5.0) -> Observable[Any]:
         connection = socket.value
         if connection.is_none():
             return throw(ValueError("No socket"))

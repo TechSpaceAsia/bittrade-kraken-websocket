@@ -12,9 +12,11 @@ def gen():
 def gen_seq():
     start = 1
     while True:
-        current = datetime.now().strftime("%m%d%H")
+        current = datetime.now().strftime("%H%m%d")
         yield f"{current}{start}"
         start = start + 1
+        if start > 999:
+            start = 0
 
 
 id_iterator = gen()

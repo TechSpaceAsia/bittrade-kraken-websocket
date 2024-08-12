@@ -72,6 +72,10 @@ def retry_with_backoff(
             nonlocal is_completed
             is_completed = True
 
+        def handle_error(ex, src):
+            logger.error("[BACKOFF] Error in backoff", exc_info=ex)
+            return reactivex.empty(scheduler)
+
         while not is_completed:
             # TODO looks like we're not handling finite cases
             delay_by = next(delays[0])
@@ -89,7 +93,7 @@ def retry_with_backoff(
             ))
             yield source.pipe(
                 operators.do_action(on_completed=complete),
-                operators.catch(reactivex.empty(scheduler)),
+                operators.catch(handle_error),
             )
 
     delays = [delays_pattern()]

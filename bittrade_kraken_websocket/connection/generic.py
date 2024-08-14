@@ -87,7 +87,7 @@ def raw_websocket_connection(url: str, scheduler: Optional[SchedulerBase] = None
             enhanced = EnhancedWebsocket(connection)
             def run_forever(*args: Any):
                 assert connection is not None
-                connection.run_forever()
+                connection.run_forever(reconnect=False, skip_utf8_validation=True)
             _scheduler.schedule(run_forever)
 
         def disconnect():

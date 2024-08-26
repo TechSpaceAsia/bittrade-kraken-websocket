@@ -9,6 +9,9 @@ def _is_channel_message(channel: "ChannelName", pair: str = "", subscription_key
     channel_name =channel.value
     if channel_name == "ohlc":
         channel_name = f"ohlc-{(subscription_keywords or {}).get('interval', 1)}"
+
+    if channel_name == "book":
+        channel_name = f"book-{(subscription_keywords or {}).get('depth', 10)}"
     # Channel messages have at least 3 length and come with second to last as channel name
     def func(x):
         if type(x) != list or len(x) < 3 or x[-2] != channel_name:

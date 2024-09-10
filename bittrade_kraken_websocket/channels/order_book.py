@@ -50,7 +50,7 @@ def accumulate_book_price(acc: BookPrice, current: BookPrice) -> BookPrice:
                     acc.ask[ask_index] = price
                     break
 
-                if price["price"] <= current_price["price"]:
+                if price["price"] <= current_price["price"] and float(price["volume"]):
                     acc.ask.insert(ask_index, price)
                     break
     elif not len(acc.ask):
@@ -67,7 +67,7 @@ def accumulate_book_price(acc: BookPrice, current: BookPrice) -> BookPrice:
                     acc.bid[bid_index] = price
                     break
 
-                if price["price"] >= current_price["price"]:
+                if price["price"] >= current_price["price"] and float(price["volume"]):
                     acc.bid.insert(bid_index, price)
                     break
     elif not len(acc.bid):

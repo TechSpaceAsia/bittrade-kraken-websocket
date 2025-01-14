@@ -73,8 +73,6 @@ Similar to [bittrade-kraken-rest](https://github.com/TechSpaceAsia/bittrade-krak
 Currently, you need to set the token onto the `EnhancedWebsocket`; this means we have no access to your Api key and secret.
 Since the token is connection based and can't be reused, this protects you as much as Kraken's current authentication method allows.
 
-In the future we might even let you code your own `send_json` method instead.
-
 See `examples/private_subscription.py` for an example of implementation
 
 ```python

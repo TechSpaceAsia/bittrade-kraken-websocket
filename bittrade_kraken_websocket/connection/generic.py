@@ -62,11 +62,15 @@ def raw_websocket_connection(url: str, scheduler: Optional[SchedulerBase] = None
             def on_open(_ws: WebSocketApp):
                 nonlocal was_connected
                 was_connected = True
-                logger.info("[SOCKET][RAW] Websocket opened")
+                logger.info(f"[SOCKET][RAW] Websocket opened at {url}")
                 observer.on_next((enhanced, WEBSOCKET_STATUS, WEBSOCKET_OPENED))
 
             def on_message(_ws: WebSocketApp, message: bytes | str):
-                pass_message = orjson.loads(message)
+                try:
+                    pass_message = orjson.loads(message)
+                except orjson.JSONDecodeError as exc:
+                    logger.error("[SOCKET][RAW] Error on message decode %s from %s", exc, message)
+                    return
                 category = WEBSOCKET_MESSAGE
                 if message == HEARTBEAT:
                     category = WEBSOCKET_HEARTBEAT
@@ -93,16 +97,20 @@ def raw_websocket_connection(url: str, scheduler: Optional[SchedulerBase] = None
             enhanced = EnhancedWebsocket(connection)
             def run_forever(*args: Any):
                 assert connection is not None
-                connection.run_forever()
+                connection.run_forever(ping_interval=10, ping_timeout=5)
             _scheduler.schedule(run_forever)
 
         def disconnect():
-            logger.info("[SOCKET] Releasing resources")
-            assert connection is not None
+            logger.info(f"[SOCKET] Releasing resources for {url}")
+            if connection is None:
+                logger.info(f"[SOCKET] Connection not found when trying to disconnect {url}")
+                return
             try:
                 connection.close()
             except WebSocketConnectionClosedException as exc:
                 logger.error("[SOCKET] Socket was already closed %s", exc)
+            except Exception as exc:
+                logger.error("[SOCKET] Error on socket close %s", exc)
         
         return reactivex.disposable.CompositeDisposable(
             _scheduler.schedule(action),
